@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from catalog.models import Brand, Category, Product
+from catalog.models import Brand, Category, Product, ProductSpec
 
 
 class Command(BaseCommand):
@@ -113,6 +113,12 @@ class Command(BaseCommand):
         ]
 
         for data in products:
-            Product.objects.get_or_create(name=data["name"], defaults=data)
+            product, _ = Product.objects.get_or_create(name=data["name"], defaults=data)
+            if product.name == "NexCore RTX 7060":
+                ProductSpec.objects.get_or_create(product=product, key="VRAM", defaults={"value": "8GB"})
+                ProductSpec.objects.get_or_create(product=product, key="Power", defaults={"value": "180W"})
+            if product.name == "IronChip i7-12700":
+                ProductSpec.objects.get_or_create(product=product, key="Cores", defaults={"value": "12"})
+                ProductSpec.objects.get_or_create(product=product, key="Socket", defaults={"value": "LGA1700"})
 
         self.stdout.write(self.style.SUCCESS("Catalog seed complete"))

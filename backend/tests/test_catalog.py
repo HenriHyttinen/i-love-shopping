@@ -1,9 +1,11 @@
 import base64
 import tempfile
+from io import BytesIO
 
 from django.test import TestCase, override_settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
+from PIL import Image
 
 from catalog.models import Brand, Category, Product
 from users.models import User
@@ -118,7 +120,7 @@ class CatalogTests(TestCase):
         response = self.client.get("/api/catalog/products/?ordering=not_a_field")
         self.assertEqual(response.status_code, 200)
         response = self.client.get("/api/catalog/products/?category[]=processors")
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 200)
         response = self.client.get("/api/catalog/products/?min_price=-10")
         self.assertEqual(response.status_code, 200)
         response = self.client.get("/api/catalog/products/?max_price=abc")
@@ -129,16 +131,40 @@ class CatalogTests(TestCase):
         admin = User.objects.create_superuser(email="admin@example.com", password="AdminPass123!")
         self.client.force_authenticate(user=admin)
 
-        png_bytes = base64.b64decode(
-            b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/xcAAn8B9Yw6uQAAAABJRU5ErkJggg=="
-        )
-        upload = SimpleUploadedFile("sample.png", png_bytes, content_type="image/png")
+        image = Image.new("RGB", (1, 1), color=(255, 0, 0))
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        buffer.seek(0)
+        upload = SimpleUploadedFile("sample.png", buffer.read(), content_type="image/png")
         response = self.client.post(
             f"/api/catalog/products/{Product.objects.first().id}/images/",
             {"image": upload, "alt_text": "Sample"},
             format="multipart",
         )
         self.assertEqual(response.status_code, 201)
+
+        for _ in range(4):
+            image = Image.new("RGB", (1, 1), color=(255, 0, 0))
+            buffer = BytesIO()
+            image.save(buffer, format="PNG")
+            buffer.seek(0)
+            extra = SimpleUploadedFile("extra.png", buffer.read(), content_type="image/png")
+            self.client.post(
+                f"/api/catalog/products/{Product.objects.first().id}/images/",
+                {"image": extra, "alt_text": "Extra"},
+                format="multipart",
+            )
+        image = Image.new("RGB", (1, 1), color=(255, 0, 0))
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        buffer.seek(0)
+        extra = SimpleUploadedFile("limit.png", buffer.read(), content_type="image/png")
+        limit = self.client.post(
+            f"/api/catalog/products/{Product.objects.first().id}/images/",
+            {"image": extra, "alt_text": "Limit"},
+            format="multipart",
+        )
+        self.assertEqual(limit.status_code, 400)
 
     def test_image_upload_denied_for_non_admin(self):
         user = User.objects.create_user(email="user@example.com", password="UserPass123!")

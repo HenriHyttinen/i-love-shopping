@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Brand, Category, Product, ProductImage
+from .models import Brand, Category, Product, ProductImage, ProductSpec
 
 
 class ProductImageInline(admin.TabularInline):
@@ -18,3 +18,4 @@ class ProductAdmin(admin.ModelAdmin):
 
 admin.site.register(Category)
 admin.site.register(Brand)
+admin.site.register(ProductSpec)

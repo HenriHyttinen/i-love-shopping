@@ -94,14 +94,29 @@ function renderProducts(products) {
   products.forEach((product) => {
     const card = document.createElement("div");
     card.className = "product-card";
+    const imageUrl = product.images.length ? product.images[0].image : "";
     card.innerHTML = `
       <h3>${product.name}</h3>
+      ${imageUrl ? `<img src="${imageUrl}" alt="${product.images[0].alt_text || product.name}" class="product-image">` : ""}
       <div class="product-meta">${product.brand.name} • ${product.category.name}</div>
       <div class="product-meta">Stock: ${product.stock_quantity}</div>
       <div class="price-tag">$${product.price}</div>
     `;
     grid.appendChild(card);
   });
+}
+
+async function runSearch() {
+  const qs = buildSearchParams();
+  try {
+    const data = await getJson(`http://localhost:8000/api/catalog/products/?${qs}`);
+    document.getElementById("search-output").textContent = JSON.stringify(data, null, 2);
+    renderProducts(data);
+    setText("search-result", `${data.length} products`);
+  } catch (err) {
+    renderProducts([]);
+    setText("search-result", JSON.stringify(err));
+  }
 }
 
 document.getElementById("reg-btn").addEventListener("click", async () => {
@@ -262,23 +277,14 @@ document.getElementById("reset-btn").addEventListener("click", async () => {
     await postJson("http://localhost:8000/api/auth/password/reset/", {
       email: document.getElementById("reset-email").value,
     });
-    setText("reset-result", "Reset email sent (check console/email backend).");
+    setText("reset-result", "Reset email sent (check console/email backend)." );
   } catch (err) {
     setText("reset-result", JSON.stringify(err));
   }
 });
 
 document.getElementById("search-btn").addEventListener("click", async () => {
-  const qs = buildSearchParams();
-  try {
-    const data = await getJson(`http://localhost:8000/api/catalog/products/?${qs}`);
-    document.getElementById("search-output").textContent = JSON.stringify(data, null, 2);
-    renderProducts(data);
-    setText("search-result", `${data.length} products`);
-  } catch (err) {
-    renderProducts([]);
-    setText("search-result", JSON.stringify(err));
-  }
+  runSearch();
 });
 
 document.getElementById("suggest-btn").addEventListener("click", async () => {
@@ -324,3 +330,5 @@ document.getElementById("img-upload-btn").addEventListener("click", async () => 
     setText("img-upload-result", JSON.stringify(err));
   }
 });
+
+runSearch();

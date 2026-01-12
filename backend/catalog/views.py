@@ -1,13 +1,22 @@
+from io import BytesIO
+
+from django.conf import settings
+from django.core.files.base import ContentFile
 from django.db.models.functions import Lower
+from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .filters import ProductFilter
-from django.shortcuts import get_object_or_404
 from .models import Brand, Category, Product
-from .serializers import BrandSerializer, CategorySerializer, ProductSerializer, ProductImageUploadSerializer
+from .serializers import (
+    BrandSerializer,
+    CategorySerializer,
+    ProductSerializer,
+    ProductImageUploadSerializer,
+)
 
 
 class ProductListView(generics.ListAPIView):
@@ -59,7 +68,32 @@ class ProductImageUploadView(APIView):
 
     def post(self, request, product_id):
         product = get_object_or_404(Product, id=product_id)
+        if product.images.count() >= settings.CATALOG_IMAGE_MAX_COUNT:
+            return Response({"detail": "Image limit reached."}, status=400)
         serializer = ProductImageUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(product=product)
+        image = serializer.validated_data["image"]
+        processed = self._process_image(image)
+        serializer.save(product=product, image=processed)
         return Response(serializer.data, status=201)
+
+    def _process_image(self, image):
+        from PIL import Image
+
+        img = Image.open(image)
+        img_format = "PNG" if img.format == "PNG" else "JPEG"
+
+        if img_format == "JPEG":
+            img = img.convert("RGB")
+
+        max_dim = settings.CATALOG_IMAGE_MAX_DIM
+        if max(img.size) > max_dim:
+            img.thumbnail((max_dim, max_dim))
+
+        buffer = BytesIO()
+        if img_format == "PNG":
+            img.save(buffer, format="PNG", optimize=True)
+        else:
+            img.save(buffer, format="JPEG", quality=85, optimize=True)
+        buffer.seek(0)
+        return ContentFile(buffer.read(), name=image.name)

@@ -212,6 +212,7 @@ curl -X POST http://localhost:8000/api/catalog/products/1/images/ \
   -F "alt_text=Front view"
 ```
 When `DEBUG=1`, images are served under `http://localhost:8000/media/...`.
+Upload rules: PNG/JPEG only, max 2MB, max 5 images per product, oversized images are resized.
 
 ## Notes for Review
 - JWT access tokens are intended for in-memory storage on the client.
@@ -232,6 +233,7 @@ When `DEBUG=1`, images are served under `http://localhost:8000/media/...`.
 ## Architecture
 - API-first Django monolith for Part 1 scope.
 - Clean separation by app: `users` for auth, `catalog` for products.
+ - Future-ready fields added (sku, slug, specs) for Parts 2–3.
 
 ## Compliance Notes
 - No payment data stored in Part 1.
@@ -273,6 +275,13 @@ Manual checks (periodic):
 - Revoke access token.
 - List products + filters + ordering.
 - Upload a product image as admin.
+
+## Final Review Checklist
+- Docker up: `docker-compose up --build`
+- Admin login works
+- OAuth login works (Google)
+- CAPTCHA is required for registration
+- Tests pass: `docker exec -it i-love-shopping1_backend_1 python manage.py test -v 2`
 
 ## Runbook
 - Start: `docker-compose up --build`

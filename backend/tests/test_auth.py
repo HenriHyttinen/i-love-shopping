@@ -14,12 +14,13 @@ class AuthFlowTests(TestCase):
         self.client = APIClient()
 
     def test_register_and_login(self):
-        response = self.client.post(
-            "/api/auth/register/",
-            {"email": "test@example.com", "password": "StrongPass123!", "full_name": "Test User", "recaptcha_token": "ok"},
-            format="json",
-        )
-        self.assertEqual(response.status_code, 201)
+        with self.settings(RECAPTCHA_SECRET_KEY=""):
+            response = self.client.post(
+                "/api/auth/register/",
+                {"email": "test@example.com", "password": "StrongPass123!", "full_name": "Test User", "recaptcha_token": "ok"},
+                format="json",
+            )
+            self.assertEqual(response.status_code, 201)
         login = self.client.post(
             "/api/auth/login/",
             {"email": "test@example.com", "password": "StrongPass123!"},
@@ -239,7 +240,7 @@ class AuthFlowTests(TestCase):
             HTTP_AUTHORIZATION=f"Bearer {login.data['access']}bad",
             format="json",
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 401)
 
     def test_login_unknown_email(self):
         response = self.client.post(

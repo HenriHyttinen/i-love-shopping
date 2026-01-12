@@ -111,6 +111,11 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+CATALOG_IMAGE_MAX_BYTES = 2 * 1024 * 1024
+CATALOG_IMAGE_MAX_COUNT = 5
+CATALOG_IMAGE_MAX_DIM = 1200
+CATALOG_IMAGE_ALLOWED_TYPES = {"image/jpeg", "image/png"}
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "users.authentication.BlocklistJWTAuthentication",
