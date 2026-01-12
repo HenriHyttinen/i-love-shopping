@@ -1,0 +1,25 @@
+DEBUG=1
+SECRET_KEY=change-me
+DB_ENGINE=django.db.backends.postgresql
+DB_NAME=hardware_shop
+DB_USER=hardware_user
+DB_PASSWORD=hardwarepass123
+DB_HOST=postgres
+DB_PORT=5432
+
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=your-email@gmail.com
+EMAIL_HOST_PASSWORD=your-app-password
+EMAIL_USE_TLS=1
+DEFAULT_FROM_EMAIL=noreply@hardware-shop.test
+
+GOOGLE_OAUTH_CLIENT_ID=
+GOOGLE_OAUTH_CLIENT_SECRET=
+RECAPTCHA_SECRET_KEY=
+RECAPTCHA_SITE_KEY=
+
+# Optional demo admin for quick testing
+DEMO_ADMIN_EMAIL=admin@example.com
+DEMO_ADMIN_PASSWORD=AdminPass123!

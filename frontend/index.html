@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hardware Shop Mini Frontend</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>Hardware Shop</h1>
+      <p>Mini frontend for Part 1 testing</p>
+    </div>
+    <div class="status-panel">
+      <div>Status: <span id="auth-status">Logged out</span></div>
+      <div class="muted">Tokens live only in memory.</div>
+    </div>
+  </header>
+
+  <section class="banner">
+    <strong>Note:</strong> This is a simple static page for API checks. Keep tokens in memory only.
+  </section>
+
+  <main>
+    <section class="card">
+      <h2>Register</h2>
+      <label>Email</label>
+      <input id="reg-email" type="email" placeholder="student@example.com">
+      <label>Password</label>
+      <input id="reg-password" type="password" placeholder="StrongPass123!">
+      <label>Full name</label>
+      <input id="reg-name" type="text" placeholder="Student Name">
+      <label>reCAPTCHA</label>
+      <div id="recaptcha-container" class="recaptcha"></div>
+      <button id="reg-btn">Register</button>
+      <div class="result" id="reg-result"></div>
+    </section>
+
+    <section class="card">
+      <h2>Login</h2>
+      <label>Email</label>
+      <input id="login-email" type="email" placeholder="student@example.com">
+      <label>Password</label>
+      <input id="login-password" type="password" placeholder="StrongPass123!">
+      <label>2FA code</label>
+      <input id="login-code" type="text" placeholder="123456">
+      <button id="login-btn">Login</button>
+      <button id="logout-all-btn">Logout All</button>
+      <button id="revoke-btn">Revoke Access</button>
+      <div class="result" id="login-result"></div>
+    </section>
+
+    <section class="card">
+      <h2>Google OAuth</h2>
+      <label>Google Client ID</label>
+      <input id="google-client-id" type="text" placeholder="paste client id here">
+      <button id="google-login-btn">Login with Google</button>
+      <div class="result" id="google-result"></div>
+    </section>
+
+    <section class="card">
+      <h2>2FA</h2>
+      <button id="twofa-setup-btn">Setup 2FA</button>
+      <div class="result" id="twofa-setup-result"></div>
+      <img id="twofa-qr" alt="2FA QR" style="max-width: 180px; display:none;">
+      <label>Verify code</label>
+      <input id="twofa-code" type="text" placeholder="123456">
+      <button id="twofa-verify-btn">Verify 2FA</button>
+      <button id="twofa-disable-btn">Disable 2FA</button>
+      <div class="result" id="twofa-verify-result"></div>
+    </section>
+
+    <section class="card">
+      <h2>Password Reset</h2>
+      <label>Email</label>
+      <input id="reset-email" type="email" placeholder="student@example.com">
+      <button id="reset-btn">Send Reset Email</button>
+      <div class="result" id="reset-result"></div>
+    </section>
+
+    <section class="card wide">
+      <h2>Catalog Search</h2>
+      <div class="row">
+        <div>
+          <label>Query</label>
+          <input id="search-q" type="text" placeholder="gpu">
+        </div>
+        <div>
+          <label>Min price</label>
+          <input id="search-min" type="number" placeholder="50">
+        </div>
+        <div>
+          <label>Max price</label>
+          <input id="search-max" type="number" placeholder="500">
+        </div>
+        <div>
+          <label>Brand</label>
+          <input id="search-brand" type="text" placeholder="NexCore">
+        </div>
+        <div>
+          <label>Category</label>
+          <input id="search-category" type="text" placeholder="graphics-cards">
+        </div>
+        <div>
+          <label>Ordering</label>
+          <select id="search-order">
+            <option value="">relevance</option>
+            <option value="price">price</option>
+            <option value="-price">price desc</option>
+            <option value="rating">rating</option>
+            <option value="name">name</option>
+          </select>
+        </div>
+      </div>
+      <button id="search-btn">Search</button>
+      <button id="suggest-btn">Suggest</button>
+      <p class="result">Tip: invalid filters return 400 (strict mode).</p>
+      <div class="result" id="search-result"></div>
+      <div id="product-grid" class="grid"></div>
+      <details>
+        <summary>Raw JSON</summary>
+        <pre id="search-output">[]</pre>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2>Upload Product Image (Admin)</h2>
+      <label>Product ID</label>
+      <input id="img-product-id" type="number" placeholder="1">
+      <label>Alt text</label>
+      <input id="img-alt" type="text" placeholder="Front view">
+      <label>Image file</label>
+      <input id="img-file" type="file" accept="image/*">
+      <button id="img-upload-btn">Upload</button>
+      <div class="result" id="img-upload-result"></div>
+    </section>
+  </main>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://www.google.com/recaptcha/api.js?render=explicit&onload=onRecaptchaLoaded" async defer></script>
+  <script src="app.js"></script>
+</body>
+</html>

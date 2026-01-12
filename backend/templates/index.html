@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hardware Shop - Demo</title>
+  <style>
+    :root {
+      --paper: #f4f1e6;
+      --ink: #1d1c1a;
+      --accent: #b3401a;
+      --muted: #7a6f63;
+    }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Times New Roman", serif;
+    }
+
+    header {
+      background: #e5dfd2;
+      padding: 16px 24px;
+      border-bottom: 2px solid #c7bfb0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: 1px;
+    }
+
+    main {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: 1fr;
+      padding: 16px 24px 40px;
+    }
+
+    .box {
+      border: 2px solid #c7bfb0;
+      background: #fffaf0;
+      padding: 12px;
+    }
+
+    .box h2 {
+      margin: 0 0 8px 0;
+      font-size: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    input, select, button {
+      font-family: inherit;
+      font-size: 14px;
+      padding: 6px;
+      margin-bottom: 8px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .row {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    }
+
+    .results {
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    pre {
+      background: #1b1b1b;
+      color: #f2f2f2;
+      padding: 8px;
+      overflow: auto;
+    }
+
+    @media (min-width: 900px) {
+      main {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Hardware Shop (Demo)</h1>
+  </header>
+  <main>
+    <section class="box">
+      <h2>Register</h2>
+      <label>Email</label>
+      <input id="reg-email" type="email" placeholder="student@example.com">
+      <label>Password</label>
+      <input id="reg-password" type="password" placeholder="StrongPass123!">
+      <label>Full name</label>
+      <input id="reg-name" type="text" placeholder="Student Name">
+      <label>reCAPTCHA token</label>
+      <input id="reg-captcha" type="text" placeholder="paste token here">
+      <button id="reg-btn">Register</button>
+    </section>
+
+    <section class="box">
+      <h2>Login</h2>
+      <label>Email</label>
+      <input id="login-email" type="email" placeholder="student@example.com">
+      <label>Password</label>
+      <input id="login-password" type="password" placeholder="StrongPass123!">
+      <label>2FA code (optional)</label>
+      <input id="login-code" type="text" placeholder="123456">
+      <button id="login-btn">Login</button>
+      <button id="logout-all-btn">Logout All Sessions</button>
+      <button id="revoke-access-btn">Revoke Access Token</button>
+      <div class="results" id="login-result"></div>
+    </section>
+
+    <section class="box">
+      <h2>Search Catalog</h2>
+      <div class="row">
+        <div>
+          <label>Query</label>
+          <input id="search-q" type="text" placeholder="gpu">
+        </div>
+        <div>
+          <label>Min price</label>
+          <input id="search-min" type="number" placeholder="50">
+        </div>
+        <div>
+          <label>Max price</label>
+          <input id="search-max" type="number" placeholder="500">
+        </div>
+        <div>
+          <label>Brand</label>
+          <input id="search-brand" type="text" placeholder="NexCore">
+        </div>
+      </div>
+      <button id="search-btn">Search</button>
+      <div class="results" id="search-result"></div>
+      <pre id="search-output">[]</pre>
+    </section>
+
+    <section class="box">
+      <h2>2FA Setup</h2>
+      <p class="results">Requires Authorization header. Use token from login.</p>
+      <button id="setup-2fa">Get QR</button>
+      <div class="results" id="setup-result"></div>
+      <img id="qr-img" alt="2FA QR" style="max-width: 200px; display:none;">
+    </section>
+
+    <section class="box">
+      <h2>Reviewer Quick Checks</h2>
+      <p class="results">These buttons call the API without needing a frontend.</p>
+      <button id="check-products">List Products</button>
+      <button id="check-filters">Filter By Category</button>
+      <button id="check-suggest">Search Suggest</button>
+      <pre id="review-output">Ready.</pre>
+    </section>
+
+    <section class="box">
+      <h2>Password Reset</h2>
+      <label>Email</label>
+      <input id="reset-email" type="email" placeholder="student@example.com">
+      <button id="reset-btn">Send Reset Email</button>
+      <div class="results" id="reset-result"></div>
+    </section>
+  </main>
+
+  <script>
+    let accessToken = "";
+
+    function setResult(id, text) {
+      document.getElementById(id).textContent = text;
+    }
+
+    async function postJson(url, data, token) {
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(data),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw payload;
+      return payload;
+    }
+
+    document.getElementById("reg-btn").addEventListener("click", async () => {
+      try {
+        const payload = await postJson("/api/auth/register/", {
+          email: document.getElementById("reg-email").value,
+          password: document.getElementById("reg-password").value,
+          full_name: document.getElementById("reg-name").value,
+          recaptcha_token: document.getElementById("reg-captcha").value,
+        });
+        setResult("login-result", "Registered. Use login to get token.");
+        console.log(payload);
+      } catch (err) {
+        setResult("login-result", JSON.stringify(err));
+      }
+    });
+
+    document.getElementById("login-btn").addEventListener("click", async () => {
+      try {
+        const payload = await postJson("/api/auth/login/", {
+          email: document.getElementById("login-email").value,
+          password: document.getElementById("login-password").value,
+          code: document.getElementById("login-code").value,
+        });
+        accessToken = payload.access;
+        setResult("login-result", "Login ok. Token stored in memory.");
+      } catch (err) {
+        setResult("login-result", JSON.stringify(err));
+      }
+    });
+
+    document.getElementById("logout-all-btn").addEventListener("click", async () => {
+      if (!accessToken) {
+        setResult("login-result", "Login first.");
+        return;
+      }
+      try {
+        await postJson("/api/auth/logout-all/", {}, accessToken);
+        setResult("login-result", "Logged out all sessions.");
+      } catch (err) {
+        setResult("login-result", JSON.stringify(err));
+      }
+    });
+
+    document.getElementById("revoke-access-btn").addEventListener("click", async () => {
+      if (!accessToken) {
+        setResult("login-result", "Login first.");
+        return;
+      }
+      try {
+        await postJson("/api/auth/token/revoke/", {}, accessToken);
+        setResult("login-result", "Access token revoked.");
+      } catch (err) {
+        setResult("login-result", JSON.stringify(err));
+      }
+    });
+
+    document.getElementById("search-btn").addEventListener("click", async () => {
+      const q = document.getElementById("search-q").value;
+      const min = document.getElementById("search-min").value;
+      const max = document.getElementById("search-max").value;
+      const brand = document.getElementById("search-brand").value;
+      const params = new URLSearchParams();
+      if (q) params.append("search", q);
+      if (min) params.append("min_price", min);
+      if (max) params.append("max_price", max);
+      if (brand) params.append("brand", brand);
+
+      const res = await fetch(`/api/catalog/products/?${params.toString()}`);
+      const data = await res.json();
+      document.getElementById("search-output").textContent = JSON.stringify(data, null, 2);
+      setResult("search-result", `${data.length} products`);
+    });
+
+    document.getElementById("setup-2fa").addEventListener("click", async () => {
+      if (!accessToken) {
+        setResult("setup-result", "Login first.");
+        return;
+      }
+      try {
+        const payload = await postJson("/api/auth/2fa/setup/", {}, accessToken);
+        setResult("setup-result", "Scan QR and verify with /api/auth/2fa/verify/");
+        const img = document.getElementById("qr-img");
+        img.src = `data:image/png;base64,${payload.qr_code_base64}`;
+        img.style.display = "block";
+      } catch (err) {
+        setResult("setup-result", JSON.stringify(err));
+      }
+    });
+
+    document.getElementById("check-products").addEventListener("click", async () => {
+      const res = await fetch("/api/catalog/products/");
+      const data = await res.json();
+      document.getElementById("review-output").textContent = JSON.stringify(data, null, 2);
+    });
+
+    document.getElementById("check-filters").addEventListener("click", async () => {
+      const res = await fetch("/api/catalog/products/?category=processors&ordering=price");
+      const data = await res.json();
+      document.getElementById("review-output").textContent = JSON.stringify(data, null, 2);
+    });
+
+    document.getElementById("check-suggest").addEventListener("click", async () => {
+      const res = await fetch("/api/catalog/suggest/?q=iron");
+      const data = await res.json();
+      document.getElementById("review-output").textContent = JSON.stringify(data, null, 2);
+    });
+
+    document.getElementById("reset-btn").addEventListener("click", async () => {
+      try {
+        await postJson("/api/auth/password/reset/", {
+          email: document.getElementById("reset-email").value,
+        });
+        setResult("reset-result", "Reset email sent (check console/email backend).");
+      } catch (err) {
+        setResult("reset-result", JSON.stringify(err));
+      }
+    });
+  </script>
+</body>
+</html>
