@@ -1,3 +1,5 @@
 !.env
 !backend/.env
 task.md
+backend/venv/
+backend/media/
