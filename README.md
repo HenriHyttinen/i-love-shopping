@@ -166,15 +166,11 @@ cp backend/envtemplate.txt backend/.env
 ```
 docker-compose up --build
 ```
-4) (Optional) Add sample images:
+4) (Optional) Attach product images:
 ```
-docker-compose exec backend python manage.py add_sample_images
+docker-compose exec -T backend python manage.py add_sample_images --use-real
 ```
-5) (Optional) Run mini frontend:
-```
-cd frontend
-python3 -m http.server 8001
-```
+   - Add `--replace` to replace existing images.
 
 ### Local (without Docker)
 1) Create venv and install requirements:
@@ -196,21 +192,17 @@ python manage.py runserver
 ```
 python manage.py createsuperuser
 ```
-5) (Optional) Add sample images:
+5) (Optional) Attach product images:
 ```
-python manage.py add_sample_images
+python manage.py add_sample_images --use-real
 ```
+   - Add `--replace` to replace existing images.
 6) (Optional) Create demo admin from env (quick testing):
 ```
 DEMO_ADMIN_EMAIL=admin@example.com DEMO_ADMIN_PASSWORD=AdminPass123! \\
 python manage.py create_demo_admin
 ```
-7) (Optional) Run mini frontend:
-```
-cd frontend
-python3 -m http.server 8001
-```
-8) (Optional) Cleanup expired access token blocks:
+7) (Optional) Cleanup expired access token blocks:
 ```
 python manage.py cleanup_access_tokens
 ```
@@ -218,7 +210,7 @@ python manage.py cleanup_access_tokens
 ## Usage Guide
 - API base: `http://localhost:8000/api`
 - Demo page: `http://localhost:8000/`
-- Mini frontend: `http://localhost:8001/`
+- Note: the demo UI is served by Django at `http://localhost:8000/`.
 
 ### Auth
 - Register (with CAPTCHA token): `POST /auth/register/`
@@ -264,6 +256,7 @@ curl -X POST http://localhost:8000/api/catalog/products/1/images/ \
   -F "alt_text=Front view"
 ```
 When `DEBUG=1`, images are served under `http://localhost:8000/media/...`.
+`backend/media` is gitignored and not part of the repo.
 Upload rules: PNG/JPEG only, max 2MB, max 5 images per product, oversized images are resized.
 
 ## Notes for Review
@@ -306,7 +299,7 @@ python manage.py test
 ```
 Docker:
 ```
-docker-compose exec backend python manage.py test
+docker-compose exec -T backend python manage.py test
 ```
 
 ## Test Coverage Map
