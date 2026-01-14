@@ -107,7 +107,10 @@ function renderProducts(products) {
   products.forEach((product) => {
     const card = document.createElement("div");
     card.className = "product-card";
-    const rawUrl = product.images.length ? product.images[0].image : "";
+    const images = Array.isArray(product.images) ? product.images : [];
+    const preferred =
+      images.find((img) => img.image && !img.image.includes("_sample")) || images[0];
+    const rawUrl = preferred ? preferred.image : "";
     const imageUrl = rawUrl
       ? rawUrl.startsWith("http") || rawUrl.startsWith("/")
         ? rawUrl
@@ -115,7 +118,7 @@ function renderProducts(products) {
       : "";
     card.innerHTML = `
       <h3>${product.name}</h3>
-      ${imageUrl ? `<img src="${imageUrl}" alt="${product.images[0].alt_text || product.name}" class="product-image">` : ""}
+      ${imageUrl ? `<img src="${imageUrl}" alt="${(preferred && preferred.alt_text) || product.name}" class="product-image">` : ""}
       <div class="product-meta">${product.brand.name} • ${product.category.name}</div>
       <div class="product-meta">Stock: ${product.stock_quantity}</div>
       <div class="price-tag">$${product.price}</div>
