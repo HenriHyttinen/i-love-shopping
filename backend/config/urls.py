@@ -6,13 +6,17 @@ from django.views.generic import TemplateView
 from django.views.decorators.cache import cache_control
 from django.views.static import serve
 
+from users.views import password_reset_confirm_page
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", TemplateView.as_view(template_name="index.html"), name="home"),
+    path("api/auth/reset/<uid>/<token>/", password_reset_confirm_page, name="password_reset_confirm"),
     path("api/auth/", include("users.urls")),
     path("api/catalog/", include("catalog.urls")),
     path("api/auth/", include("dj_rest_auth.urls")),
     path("api/auth/registration/", include("dj_rest_auth.registration.urls")),
+    path("api/auth/", include("django.contrib.auth.urls")),
 ]
 
 if settings.DEBUG:

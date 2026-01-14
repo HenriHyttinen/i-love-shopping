@@ -57,6 +57,57 @@ erDiagram
     BRAND ||--o{ PRODUCT : has
     PRODUCT ||--o{ PRODUCT_IMAGE : has
 ```
+Crowfoot notation is used for cardinality/modality:
+- `||` = exactly one (mandatory)
+- `o{` = zero or many (optional many)
+
+## Architecture & Scalability
+- Architectural style: modular monolith (Django + REST). The `users` and `catalog` apps are cleanly separated and can be split into services if needed.
+- Scaling path: stateless API with JWT allows horizontal scaling behind a load balancer; Postgres can scale with read replicas and connection pooling.
+- Caching: safe to add Redis for hot catalog queries and token/session metadata without changing API contracts.
+
+## Database & ACID Notes
+- Default local DB: SQLite for quick dev. Docker uses Postgres for production-like behavior.
+- ACID matters here because orders/payments/inventory must be consistent even with concurrent requests and failures:
+  - Atomicity: multi-step updates (e.g., stock + order rows) must succeed or roll back together.
+  - Consistency: constraints + foreign keys keep data valid after every transaction.
+  - Isolation: concurrent checkouts won't corrupt stock counts.
+  - Durability: committed orders survive server restarts.
+- Postgres supports transaction isolation levels, robust indexing, and scaling strategies (read replicas, partitioning).
+
+## JWT Notes (Reviewer-Friendly)
+JWT = `header.payload.signature` (base64url):
+- Header: signing algorithm and token type.
+- Payload: claims like user id, issued-at (`iat`), expiration (`exp`), token id (`jti`).
+- Signature: verifies integrity and authenticity (server secret).
+This project uses short-lived access tokens + rotated refresh tokens with blacklist protection.
+
+## Auth & Security Notes
+- Access tokens live in memory only (mini frontend) and are short-lived.
+- Refresh tokens rotate on every refresh, with blacklist after rotation.
+- Access token revocation uses a blocklist to reject revoked JWTs.
+- Registration is protected with reCAPTCHA when a secret key is configured.
+- Optional user-enabled 2FA (TOTP) for stronger account security.
+
+## Search & Relevance
+- `search` uses DRF full-text search across name, description, brand, category.
+- Sorting supports `price`, `rating`, `name`, and `relevance`.
+- `ordering=relevance` applies a simple rank: name prefix match > name contains > description/brand/category contains.
+
+## Testing Strategy
+Automated tests cover:
+- Auth: registration, login, 2FA, refresh rotation, token revocation, logout flows.
+- Catalog: filtering, ordering, suggestions, image upload permissions.
+- Security: invalid filters, injection-like input, invalid ordering.
+
+Manual checks (recommended for demo):
+- CAPTCHA: registration requires a valid token when secret key is set.
+- OAuth: Google login with access token exchange.
+- 2FA: setup → verify → login with 2FA enabled → disable.
+
+Latest test runs:
+- Local (venv + SQLite in-memory): `DB_ENGINE=django.db.backends.sqlite3 DB_NAME=:memory: RECAPTCHA_SECRET_KEY= python manage.py test` → 34 tests OK.
+- Docker (Postgres): `docker-compose exec -T backend env RECAPTCHA_SECRET_KEY= python manage.py test` → 34 tests OK.
 
 ## Setup for OAuth (Google)
 1) Go to Google Cloud Console → APIs & Services → Credentials.
@@ -197,6 +248,7 @@ Password reset endpoints (dj-rest-auth):
 - Categories: `GET /catalog/categories/`
 - Brands: `GET /catalog/brands/`
 - Suggestions: `GET /catalog/suggest/?q=gpu`
+ - Ordering: `ordering=relevance|price|-price|rating|name`
  - Upload image (admin only): `POST /catalog/products/{id}/images/`
 
 Filtering and sorting:

@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: hardware_user
       POSTGRES_PASSWORD: hardwarepass123
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -22,6 +22,7 @@ services:
       sh -c "
         python manage.py migrate &&
         python manage.py seed_catalog &&
+        python manage.py add_sample_images &&
         python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./backend:/app

@@ -26,11 +26,11 @@
     <section class="card">
       <h2>Register</h2>
       <label>Email</label>
-      <input id="reg-email" type="email" placeholder="student@example.com">
+      <input id="reg-email" type="email" placeholder="student@example.com" required>
       <label>Password</label>
-      <input id="reg-password" type="password" placeholder="StrongPass123!">
+      <input id="reg-password" type="password" placeholder="StrongPass123!" required>
       <label>Full name</label>
-      <input id="reg-name" type="text" placeholder="Student Name">
+      <input id="reg-name" type="text" placeholder="Student Name" required>
       <label>reCAPTCHA</label>
       <div id="recaptcha-container" class="recaptcha"></div>
       <button id="reg-btn">Register</button>
@@ -40,9 +40,9 @@
     <section class="card">
       <h2>Login</h2>
       <label>Email</label>
-      <input id="login-email" type="email" placeholder="student@example.com">
+      <input id="login-email" type="email" placeholder="student@example.com" required>
       <label>Password</label>
-      <input id="login-password" type="password" placeholder="StrongPass123!">
+      <input id="login-password" type="password" placeholder="StrongPass123!" required>
       <label>2FA code</label>
       <input id="login-code" type="text" placeholder="123456">
       <button id="login-btn">Login</button>
@@ -74,7 +74,7 @@
     <section class="card">
       <h2>Password Reset</h2>
       <label>Email</label>
-      <input id="reset-email" type="email" placeholder="student@example.com">
+      <input id="reset-email" type="email" placeholder="student@example.com" required>
       <button id="reset-btn">Send Reset Email</button>
       <div class="result" id="reset-result"></div>
     </section>
@@ -105,7 +105,7 @@
         <div>
           <label>Ordering</label>
           <select id="search-order">
-            <option value="">relevance</option>
+            <option value="relevance">relevance</option>
             <option value="price">price</option>
             <option value="-price">price desc</option>
             <option value="rating">rating</option>

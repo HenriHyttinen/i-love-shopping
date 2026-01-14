@@ -2,6 +2,7 @@ from io import BytesIO
 
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.db.models import Case, IntegerField, Value, When
 from django.db.models.functions import Lower
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions
@@ -26,6 +27,24 @@ class ProductListView(generics.ListAPIView):
     filterset_class = ProductFilter
     search_fields = ["name", "description", "brand__name", "category__name"]
     ordering_fields = ["price", "rating", "name"]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        ordering = self.request.query_params.get("ordering", "")
+        search = self.request.query_params.get("search", "").strip()
+        if ordering == "relevance" and search:
+            return queryset.annotate(
+                relevance_rank=Case(
+                    When(name__istartswith=search, then=Value(0)),
+                    When(name__icontains=search, then=Value(1)),
+                    When(description__icontains=search, then=Value(2)),
+                    When(brand__name__icontains=search, then=Value(3)),
+                    When(category__name__icontains=search, then=Value(4)),
+                    default=Value(5),
+                    output_field=IntegerField(),
+                )
+            ).order_by("relevance_rank", "name")
+        return queryset
 
 
 class ProductDetailView(generics.RetrieveAPIView):

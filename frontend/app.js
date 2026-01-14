@@ -2,6 +2,18 @@ let accessToken = "";
 let recaptchaSiteKey = "";
 let recaptchaWidgetId = null;
 
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function isStrongEnoughPassword(value) {
+  return value.length >= 8;
+}
+
+function isValidTwoFACode(value) {
+  return /^[0-9]{6,8}$/.test(value);
+}
+
 function setText(id, text) {
   document.getElementById(id).textContent = text;
 }
@@ -91,10 +103,16 @@ function renderProducts(products) {
     grid.innerHTML = "<div class=\"muted\">No products found.</div>";
     return;
   }
+  const origin = window.location.origin;
   products.forEach((product) => {
     const card = document.createElement("div");
     card.className = "product-card";
-    const imageUrl = product.images.length ? product.images[0].image : "";
+    const rawUrl = product.images.length ? product.images[0].image : "";
+    const imageUrl = rawUrl
+      ? rawUrl.startsWith("http") || rawUrl.startsWith("/")
+        ? rawUrl
+        : `${origin}/media/${rawUrl}`
+      : "";
     card.innerHTML = `
       <h3>${product.name}</h3>
       ${imageUrl ? `<img src="${imageUrl}" alt="${product.images[0].alt_text || product.name}" class="product-image">` : ""}
@@ -104,6 +122,28 @@ function renderProducts(products) {
     `;
     grid.appendChild(card);
   });
+}
+
+let suggestTimer = null;
+
+async function runSuggest(query) {
+  const q = (query ?? document.getElementById("search-q").value).trim();
+  if (!q) {
+    document.getElementById("search-output").textContent = "[]";
+    setText("search-result", "0 suggestions");
+    return;
+  }
+  try {
+    const data = await getJson(
+      `http://localhost:8000/api/catalog/suggest/?q=${encodeURIComponent(q)}`
+    );
+    document.getElementById("search-output").textContent = JSON.stringify(data, null, 2);
+    renderProducts([]);
+    setText("search-result", `${data.length} suggestions`);
+  } catch (err) {
+    renderProducts([]);
+    setText("search-result", JSON.stringify(err));
+  }
 }
 
 async function runSearch() {
@@ -121,6 +161,21 @@ async function runSearch() {
 
 document.getElementById("reg-btn").addEventListener("click", async () => {
   try {
+    const email = document.getElementById("reg-email").value.trim();
+    const password = document.getElementById("reg-password").value;
+    const fullName = document.getElementById("reg-name").value.trim();
+    if (!email || !password || !fullName) {
+      setText("reg-result", "Email, password, and full name are required.");
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setText("reg-result", "Enter a valid email.");
+      return;
+    }
+    if (!isStrongEnoughPassword(password)) {
+      setText("reg-result", "Password must be at least 8 characters.");
+      return;
+    }
     if (recaptchaWidgetId === null) {
       setText("reg-result", "reCAPTCHA not loaded.");
       return;
@@ -131,9 +186,9 @@ document.getElementById("reg-btn").addEventListener("click", async () => {
       return;
     }
     await postJson("http://localhost:8000/api/auth/register/", {
-      email: document.getElementById("reg-email").value,
-      password: document.getElementById("reg-password").value,
-      full_name: document.getElementById("reg-name").value,
+      email,
+      password,
+      full_name: fullName,
       recaptcha_token: recaptchaToken,
     });
     grecaptcha.reset(recaptchaWidgetId);
@@ -145,10 +200,25 @@ document.getElementById("reg-btn").addEventListener("click", async () => {
 
 document.getElementById("login-btn").addEventListener("click", async () => {
   try {
+    const email = document.getElementById("login-email").value.trim();
+    const password = document.getElementById("login-password").value;
+    const code = document.getElementById("login-code").value.trim();
+    if (!email || !password) {
+      setText("login-result", "Email and password are required.");
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setText("login-result", "Enter a valid email.");
+      return;
+    }
+    if (code && !isValidTwoFACode(code)) {
+      setText("login-result", "2FA code must be 6-8 digits.");
+      return;
+    }
     const payload = await postJson("http://localhost:8000/api/auth/login/", {
-      email: document.getElementById("login-email").value,
-      password: document.getElementById("login-password").value,
-      code: document.getElementById("login-code").value,
+      email,
+      password,
+      code,
     });
     accessToken = payload.access;
     setAuthStatus("Logged in");
@@ -244,9 +314,14 @@ document.getElementById("twofa-verify-btn").addEventListener("click", async () =
     return;
   }
   try {
+    const code = document.getElementById("twofa-code").value.trim();
+    if (!isValidTwoFACode(code)) {
+      setText("twofa-verify-result", "Enter a valid 6-8 digit code.");
+      return;
+    }
     await postJson(
       "http://localhost:8000/api/auth/2fa/verify/",
-      { code: document.getElementById("twofa-code").value },
+      { code },
       accessToken
     );
     setText("twofa-verify-result", "2FA enabled.");
@@ -261,9 +336,14 @@ document.getElementById("twofa-disable-btn").addEventListener("click", async () 
     return;
   }
   try {
+    const code = document.getElementById("twofa-code").value.trim();
+    if (!isValidTwoFACode(code)) {
+      setText("twofa-verify-result", "Enter a valid 6-8 digit code.");
+      return;
+    }
     await postJson(
       "http://localhost:8000/api/auth/2fa/disable/",
-      { code: document.getElementById("twofa-code").value },
+      { code },
       accessToken
     );
     setText("twofa-verify-result", "2FA disabled.");
@@ -274,8 +354,17 @@ document.getElementById("twofa-disable-btn").addEventListener("click", async () 
 
 document.getElementById("reset-btn").addEventListener("click", async () => {
   try {
+    const email = document.getElementById("reset-email").value.trim();
+    if (!email) {
+      setText("reset-result", "Email is required.");
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setText("reset-result", "Enter a valid email.");
+      return;
+    }
     await postJson("http://localhost:8000/api/auth/password/reset/", {
-      email: document.getElementById("reset-email").value,
+      email,
     });
     setText("reset-result", "Reset email sent (check console/email backend)." );
   } catch (err) {
@@ -287,17 +376,18 @@ document.getElementById("search-btn").addEventListener("click", async () => {
   runSearch();
 });
 
-document.getElementById("suggest-btn").addEventListener("click", async () => {
-  const q = document.getElementById("search-q").value;
-  try {
-    const data = await getJson(`http://localhost:8000/api/catalog/suggest/?q=${encodeURIComponent(q)}`);
-    document.getElementById("search-output").textContent = JSON.stringify(data, null, 2);
-    renderProducts([]);
-    setText("search-result", `${data.length} suggestions`);
-  } catch (err) {
-    renderProducts([]);
-    setText("search-result", JSON.stringify(err));
+document.getElementById("search-q").addEventListener("input", (event) => {
+  const value = event.target.value;
+  if (suggestTimer) {
+    clearTimeout(suggestTimer);
   }
+  suggestTimer = setTimeout(() => {
+    runSuggest(value);
+  }, 300);
+});
+
+document.getElementById("suggest-btn").addEventListener("click", async () => {
+  runSuggest();
 });
 
 document.getElementById("img-upload-btn").addEventListener("click", async () => {

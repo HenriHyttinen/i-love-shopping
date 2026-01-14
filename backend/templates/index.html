@@ -3,76 +3,139 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Hardware Shop - Demo</title>
+  <title>Hardware Shop Mini Frontend</title>
   <style>
     :root {
-      --paper: #f4f1e6;
-      --ink: #1d1c1a;
-      --accent: #b3401a;
-      --muted: #7a6f63;
+      --ink: #eef1f6;
+      --muted: #9aa6b6;
+      --accent: #4ea0ff;
+      --accent-dark: #2f6fb8;
+      --card: #141c2b;
+      --border: #2a3a52;
+      --panel: #0f1624;
+      --steel: #1f2a3d;
+      --shadow: rgba(0, 0, 0, 0.35);
     }
 
     body {
       margin: 0;
-      background: var(--paper);
+      background:
+        radial-gradient(circle at 15% 20%, #1e2b44 0%, #0b111b 45%),
+        linear-gradient(120deg, #0b111b 0%, #101a2b 60%, #0c1421 100%);
       color: var(--ink);
-      font-family: "Times New Roman", serif;
+      font-family: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
     }
 
     header {
-      background: #e5dfd2;
-      padding: 16px 24px;
-      border-bottom: 2px solid #c7bfb0;
+      padding: 22px 26px;
+      border-bottom: 1px solid #1d2a3e;
+      background: linear-gradient(90deg, #0c1423 0%, #122038 55%, #101a2b 100%);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
     }
 
-    h1 {
+    .brand h1 {
       margin: 0;
-      font-size: 28px;
-      letter-spacing: 1px;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      font-size: 22px;
+    }
+
+    .brand p {
+      margin: 6px 0 0 0;
+      color: var(--muted);
+    }
+
+    .status-panel {
+      border: 1px solid #26354c;
+      background: #0f1728;
+      padding: 10px 12px;
+      min-width: 200px;
+      font-size: 13px;
+      box-shadow: 0 6px 12px var(--shadow);
+    }
+
+    .banner {
+      padding: 10px 24px;
+      background: #101a2b;
+      border-bottom: 1px solid #1d2a3e;
+      font-size: 13px;
+      color: var(--muted);
     }
 
     main {
       display: grid;
       gap: 16px;
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       padding: 16px 24px 40px;
     }
 
-    .box {
-      border: 2px solid #c7bfb0;
-      background: #fffaf0;
-      padding: 12px;
+    .card {
+      border: 1px solid var(--border);
+      background: var(--card);
+      padding: 16px;
+      box-shadow: 0 8px 18px var(--shadow);
+      overflow: hidden;
     }
 
-    .box h2 {
-      margin: 0 0 8px 0;
-      font-size: 18px;
+    .card.wide {
+      grid-column: 1 / -1;
+    }
+
+    .card img {
+      border: 1px solid #c7bfb0;
+      background: #fffaf0;
+      padding: 4px;
+      margin-bottom: 8px;
+    }
+
+    .recaptcha {
+      margin-bottom: 8px;
+      transform: scale(0.9);
+      transform-origin: 0 0;
+      min-height: 70px;
     }
 
     label {
       display: block;
-      font-size: 14px;
       margin-bottom: 4px;
+      font-size: 14px;
     }
 
     input, select, button {
-      font-family: inherit;
-      font-size: 14px;
-      padding: 6px;
-      margin-bottom: 8px;
       width: 100%;
       box-sizing: border-box;
+      margin-bottom: 8px;
+      padding: 8px 10px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    input, select {
+      background: #0c1423;
+      border: 1px solid #2a3a52;
+      color: var(--ink);
     }
 
     button {
-      background: var(--accent);
+      background: linear-gradient(135deg, #3c7ad6 0%, #4ea0ff 100%);
       color: white;
       border: none;
       cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      font-size: 12px;
     }
 
     button:hover {
-      opacity: 0.9;
+      filter: brightness(1.05);
+    }
+
+    button:active {
+      background: linear-gradient(135deg, #2a5ea4 0%, #3c7ad6 100%);
     }
 
     .row {
@@ -81,59 +144,157 @@
       grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     }
 
-    .results {
-      font-size: 14px;
+    .card h2 {
+      margin-top: 0;
+    }
+
+    .result {
+      font-size: 13px;
       color: var(--muted);
+      min-height: 16px;
     }
 
     pre {
-      background: #1b1b1b;
-      color: #f2f2f2;
+      background: #0b111b;
+      color: #cdd7e6;
       padding: 8px;
       overflow: auto;
     }
 
-    @media (min-width: 900px) {
-      main {
-        grid-template-columns: 1fr 1fr;
+    details {
+      margin-top: 8px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      margin-top: 8px;
+    }
+
+    .product-card {
+      border: 1px solid var(--border);
+      background: #111a2b;
+      padding: 10px;
+    }
+
+    .product-image {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+      border: 1px solid var(--border);
+      margin-bottom: 6px;
+    }
+
+    .product-card h3 {
+      margin: 0 0 6px 0;
+      font-size: 16px;
+    }
+
+    .product-meta {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .price-tag {
+      display: inline-block;
+      margin-top: 6px;
+      background: #0c1423;
+      color: var(--accent);
+      padding: 4px 6px;
+      font-size: 13px;
+      border: 1px solid #2a3a52;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    @media (max-width: 640px) {
+      header {
+        align-items: flex-start;
+      }
+      .status-panel {
+        width: 100%;
       }
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>Hardware Shop (Demo)</h1>
+    <div class="brand">
+      <h1>Hardware Shop</h1>
+      <p>Mini frontend for Part 1 testing</p>
+    </div>
+    <div class="status-panel">
+      <div>Status: <span id="auth-status">Logged out</span></div>
+      <div class="muted">Tokens live only in memory.</div>
+    </div>
   </header>
+
+  <section class="banner">
+    <strong>Note:</strong> This is a simple static page for API checks. Keep tokens in memory only.
+  </section>
+
   <main>
-    <section class="box">
+    <section class="card">
       <h2>Register</h2>
       <label>Email</label>
-      <input id="reg-email" type="email" placeholder="student@example.com">
+      <input id="reg-email" type="email" placeholder="student@example.com" required>
       <label>Password</label>
-      <input id="reg-password" type="password" placeholder="StrongPass123!">
+      <input id="reg-password" type="password" placeholder="StrongPass123!" required>
       <label>Full name</label>
-      <input id="reg-name" type="text" placeholder="Student Name">
-      <label>reCAPTCHA token</label>
-      <input id="reg-captcha" type="text" placeholder="paste token here">
+      <input id="reg-name" type="text" placeholder="Student Name" required>
+      <label>reCAPTCHA</label>
+      <div id="recaptcha-container" class="recaptcha"></div>
       <button id="reg-btn">Register</button>
+      <div class="result" id="reg-result"></div>
     </section>
 
-    <section class="box">
+    <section class="card">
       <h2>Login</h2>
       <label>Email</label>
-      <input id="login-email" type="email" placeholder="student@example.com">
+      <input id="login-email" type="email" placeholder="student@example.com" required>
       <label>Password</label>
-      <input id="login-password" type="password" placeholder="StrongPass123!">
-      <label>2FA code (optional)</label>
+      <input id="login-password" type="password" placeholder="StrongPass123!" required>
+      <label>2FA code</label>
       <input id="login-code" type="text" placeholder="123456">
       <button id="login-btn">Login</button>
-      <button id="logout-all-btn">Logout All Sessions</button>
-      <button id="revoke-access-btn">Revoke Access Token</button>
-      <div class="results" id="login-result"></div>
+      <button id="logout-all-btn">Logout All</button>
+      <button id="revoke-btn">Revoke Access</button>
+      <div class="result" id="login-result"></div>
     </section>
 
-    <section class="box">
-      <h2>Search Catalog</h2>
+    <section class="card">
+      <h2>Google OAuth</h2>
+      <label>Google Client ID</label>
+      <input id="google-client-id" type="text" placeholder="paste client id here">
+      <button id="google-login-btn">Login with Google</button>
+      <div class="result" id="google-result"></div>
+    </section>
+
+    <section class="card">
+      <h2>2FA</h2>
+      <button id="twofa-setup-btn">Setup 2FA</button>
+      <div class="result" id="twofa-setup-result"></div>
+      <img id="twofa-qr" alt="2FA QR" style="max-width: 180px; display:none;">
+      <label>Verify code</label>
+      <input id="twofa-code" type="text" placeholder="123456">
+      <button id="twofa-verify-btn">Verify 2FA</button>
+      <button id="twofa-disable-btn">Disable 2FA</button>
+      <div class="result" id="twofa-verify-result"></div>
+    </section>
+
+    <section class="card">
+      <h2>Password Reset</h2>
+      <label>Email</label>
+      <input id="reset-email" type="email" placeholder="student@example.com" required>
+      <button id="reset-btn">Send Reset Email</button>
+      <div class="result" id="reset-result"></div>
+    </section>
+
+    <section class="card wide">
+      <h2>Catalog Search</h2>
       <div class="row">
         <div>
           <label>Query</label>
@@ -151,43 +312,103 @@
           <label>Brand</label>
           <input id="search-brand" type="text" placeholder="NexCore">
         </div>
+        <div>
+          <label>Category</label>
+          <input id="search-category" type="text" placeholder="graphics-cards">
+        </div>
+        <div>
+          <label>Ordering</label>
+          <select id="search-order">
+            <option value="relevance">relevance</option>
+            <option value="price">price</option>
+            <option value="-price">price desc</option>
+            <option value="rating">rating</option>
+            <option value="name">name</option>
+          </select>
+        </div>
       </div>
       <button id="search-btn">Search</button>
-      <div class="results" id="search-result"></div>
-      <pre id="search-output">[]</pre>
+      <button id="suggest-btn">Suggest</button>
+      <p class="result">Tip: invalid filters return 400 (strict mode).</p>
+      <div class="result" id="search-result"></div>
+      <div id="product-grid" class="grid"></div>
+      <details>
+        <summary>Raw JSON</summary>
+        <pre id="search-output">[]</pre>
+      </details>
     </section>
 
-    <section class="box">
-      <h2>2FA Setup</h2>
-      <p class="results">Requires Authorization header. Use token from login.</p>
-      <button id="setup-2fa">Get QR</button>
-      <div class="results" id="setup-result"></div>
-      <img id="qr-img" alt="2FA QR" style="max-width: 200px; display:none;">
-    </section>
-
-    <section class="box">
-      <h2>Reviewer Quick Checks</h2>
-      <p class="results">These buttons call the API without needing a frontend.</p>
-      <button id="check-products">List Products</button>
-      <button id="check-filters">Filter By Category</button>
-      <button id="check-suggest">Search Suggest</button>
-      <pre id="review-output">Ready.</pre>
-    </section>
-
-    <section class="box">
-      <h2>Password Reset</h2>
-      <label>Email</label>
-      <input id="reset-email" type="email" placeholder="student@example.com">
-      <button id="reset-btn">Send Reset Email</button>
-      <div class="results" id="reset-result"></div>
+    <section class="card">
+      <h2>Upload Product Image (Admin)</h2>
+      <label>Product ID</label>
+      <input id="img-product-id" type="number" placeholder="1">
+      <label>Alt text</label>
+      <input id="img-alt" type="text" placeholder="Front view">
+      <label>Image file</label>
+      <input id="img-file" type="file" accept="image/*">
+      <button id="img-upload-btn">Upload</button>
+      <div class="result" id="img-upload-result"></div>
     </section>
   </main>
 
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://www.google.com/recaptcha/api.js?render=explicit&onload=onRecaptchaLoaded" async defer></script>
   <script>
     let accessToken = "";
+    let recaptchaSiteKey = "";
+    let recaptchaWidgetId = null;
 
-    function setResult(id, text) {
+    function isValidEmail(value) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    }
+
+    function isStrongEnoughPassword(value) {
+      return value.length >= 8;
+    }
+
+    function isValidTwoFACode(value) {
+      return /^[0-9]{6,8}$/.test(value);
+    }
+
+    function setText(id, text) {
       document.getElementById(id).textContent = text;
+    }
+
+    function setAuthStatus(text) {
+      document.getElementById("auth-status").textContent = text;
+    }
+
+    function tryRenderRecaptcha() {
+      if (!recaptchaSiteKey || !window.grecaptcha || recaptchaWidgetId !== null) {
+        return;
+      }
+      recaptchaWidgetId = grecaptcha.render("recaptcha-container", {
+        sitekey: recaptchaSiteKey,
+      });
+    }
+
+    async function loadGoogleClientId() {
+      try {
+        const data = await getJson("http://localhost:8000/api/auth/oauth/google-client-id/");
+        if (data.client_id) {
+          document.getElementById("google-client-id").value = data.client_id;
+          setText("google-result", "Client ID loaded.");
+        }
+      } catch (_) {
+        setText("google-result", "Could not load Client ID.");
+      }
+    }
+
+    async function loadRecaptchaSiteKey() {
+      try {
+        const data = await getJson("http://localhost:8000/api/auth/recaptcha-site-key/");
+        if (data.site_key) {
+          recaptchaSiteKey = data.site_key;
+          tryRenderRecaptcha();
+        }
+      } catch (_) {
+        setText("reg-result", "Could not load reCAPTCHA site key.");
+      }
     }
 
     async function postJson(url, data, token) {
@@ -203,122 +424,364 @@
       return payload;
     }
 
+    async function getJson(url) {
+      const res = await fetch(url);
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        throw payload;
+      }
+      return res.json();
+    }
+
+    function buildSearchParams() {
+      const params = new URLSearchParams();
+      const q = document.getElementById("search-q").value;
+      const min = document.getElementById("search-min").value;
+      const max = document.getElementById("search-max").value;
+      const brand = document.getElementById("search-brand").value;
+      const category = document.getElementById("search-category").value;
+      const ordering = document.getElementById("search-order").value;
+
+      if (q) params.append("search", q);
+      if (min) params.append("min_price", min);
+      if (max) params.append("max_price", max);
+      if (brand) params.append("brand", brand);
+      if (category) params.append("category", category);
+      if (ordering) params.append("ordering", ordering);
+
+      return params.toString();
+    }
+
+    function renderProducts(products) {
+      const grid = document.getElementById("product-grid");
+      grid.innerHTML = "";
+      if (!products.length) {
+        grid.innerHTML = "<div class=\"muted\">No products found.</div>";
+        return;
+      }
+      const origin = window.location.origin;
+      products.forEach((product) => {
+        const card = document.createElement("div");
+        card.className = "product-card";
+        const rawUrl = product.images.length ? product.images[0].image : "";
+        const imageUrl = rawUrl
+          ? rawUrl.startsWith("http") || rawUrl.startsWith("/")
+            ? rawUrl
+            : `${origin}/media/${rawUrl}`
+          : "";
+        card.innerHTML = `
+          <h3>${product.name}</h3>
+          ${imageUrl ? `<img src="${imageUrl}" alt="${product.images[0].alt_text || product.name}" class="product-image">` : ""}
+          <div class="product-meta">${product.brand.name} • ${product.category.name}</div>
+          <div class="product-meta">Stock: ${product.stock_quantity}</div>
+          <div class="price-tag">$${product.price}</div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    let suggestTimer = null;
+
+    async function runSuggest(query) {
+      const q = (query ?? document.getElementById("search-q").value).trim();
+      if (!q) {
+        document.getElementById("search-output").textContent = "[]";
+        setText("search-result", "0 suggestions");
+        return;
+      }
+      try {
+        const data = await getJson(
+          `http://localhost:8000/api/catalog/suggest/?q=${encodeURIComponent(q)}`
+        );
+        document.getElementById("search-output").textContent = JSON.stringify(data, null, 2);
+        renderProducts([]);
+        setText("search-result", `${data.length} suggestions`);
+      } catch (err) {
+        renderProducts([]);
+        setText("search-result", JSON.stringify(err));
+      }
+    }
+
+    async function runSearch() {
+      const qs = buildSearchParams();
+      try {
+        const data = await getJson(`http://localhost:8000/api/catalog/products/?${qs}`);
+        document.getElementById("search-output").textContent = JSON.stringify(data, null, 2);
+        renderProducts(data);
+        setText("search-result", `${data.length} products`);
+      } catch (err) {
+        renderProducts([]);
+        setText("search-result", JSON.stringify(err));
+      }
+    }
+
     document.getElementById("reg-btn").addEventListener("click", async () => {
       try {
-        const payload = await postJson("/api/auth/register/", {
-          email: document.getElementById("reg-email").value,
-          password: document.getElementById("reg-password").value,
-          full_name: document.getElementById("reg-name").value,
-          recaptcha_token: document.getElementById("reg-captcha").value,
+        const email = document.getElementById("reg-email").value.trim();
+        const password = document.getElementById("reg-password").value;
+        const fullName = document.getElementById("reg-name").value.trim();
+        if (!email || !password || !fullName) {
+          setText("reg-result", "Email, password, and full name are required.");
+          return;
+        }
+        if (!isValidEmail(email)) {
+          setText("reg-result", "Enter a valid email.");
+          return;
+        }
+        if (!isStrongEnoughPassword(password)) {
+          setText("reg-result", "Password must be at least 8 characters.");
+          return;
+        }
+        if (recaptchaWidgetId === null) {
+          setText("reg-result", "reCAPTCHA not loaded.");
+          return;
+        }
+        const recaptchaToken = grecaptcha.getResponse(recaptchaWidgetId);
+        if (!recaptchaToken) {
+          setText("reg-result", "Please complete the reCAPTCHA.");
+          return;
+        }
+        await postJson("http://localhost:8000/api/auth/register/", {
+          email,
+          password,
+          full_name: fullName,
+          recaptcha_token: recaptchaToken,
         });
-        setResult("login-result", "Registered. Use login to get token.");
-        console.log(payload);
+        grecaptcha.reset(recaptchaWidgetId);
+        setText("reg-result", "Registered. Now login.");
       } catch (err) {
-        setResult("login-result", JSON.stringify(err));
+        setText("reg-result", JSON.stringify(err));
       }
     });
 
     document.getElementById("login-btn").addEventListener("click", async () => {
       try {
-        const payload = await postJson("/api/auth/login/", {
-          email: document.getElementById("login-email").value,
-          password: document.getElementById("login-password").value,
-          code: document.getElementById("login-code").value,
+        const email = document.getElementById("login-email").value.trim();
+        const password = document.getElementById("login-password").value;
+        const code = document.getElementById("login-code").value.trim();
+        if (!email || !password) {
+          setText("login-result", "Email and password are required.");
+          return;
+        }
+        if (!isValidEmail(email)) {
+          setText("login-result", "Enter a valid email.");
+          return;
+        }
+        if (code && !isValidTwoFACode(code)) {
+          setText("login-result", "2FA code must be 6-8 digits.");
+          return;
+        }
+        const payload = await postJson("http://localhost:8000/api/auth/login/", {
+          email,
+          password,
+          code,
         });
         accessToken = payload.access;
-        setResult("login-result", "Login ok. Token stored in memory.");
+        setAuthStatus("Logged in");
+        setText("login-result", "Login ok. Access token stored in memory.");
       } catch (err) {
-        setResult("login-result", JSON.stringify(err));
+        setText("login-result", JSON.stringify(err));
       }
     });
+
+    document.getElementById("google-login-btn").addEventListener("click", async () => {
+      if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
+        setText("google-result", "Google script not loaded yet.");
+        return;
+      }
+      const clientId = document.getElementById("google-client-id").value.trim();
+      if (!clientId) {
+        setText("google-result", "Client ID required.");
+        return;
+      }
+      const tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: "email profile",
+        callback: async (resp) => {
+          if (resp.error) {
+            setText("google-result", JSON.stringify(resp));
+            return;
+          }
+          try {
+            const payload = await postJson("http://localhost:8000/api/auth/oauth/google/", {
+              access_token: resp.access_token,
+            });
+            accessToken = payload.access;
+            setAuthStatus("Logged in (JWT)");
+            setText("google-result", "Google login OK.");
+          } catch (err) {
+            setText("google-result", JSON.stringify(err));
+          }
+        },
+      });
+      tokenClient.requestAccessToken();
+    });
+
+    loadGoogleClientId();
+    loadRecaptchaSiteKey();
+
+    window.onRecaptchaLoaded = function () {
+      tryRenderRecaptcha();
+    };
 
     document.getElementById("logout-all-btn").addEventListener("click", async () => {
       if (!accessToken) {
-        setResult("login-result", "Login first.");
+        setText("login-result", "Login first.");
         return;
       }
       try {
-        await postJson("/api/auth/logout-all/", {}, accessToken);
-        setResult("login-result", "Logged out all sessions.");
+        await postJson("http://localhost:8000/api/auth/logout-all/", {}, accessToken);
+        setAuthStatus("Logged out");
+        setText("login-result", "Logged out all sessions.");
       } catch (err) {
-        setResult("login-result", JSON.stringify(err));
+        setText("login-result", JSON.stringify(err));
       }
     });
 
-    document.getElementById("revoke-access-btn").addEventListener("click", async () => {
+    document.getElementById("revoke-btn").addEventListener("click", async () => {
       if (!accessToken) {
-        setResult("login-result", "Login first.");
+        setText("login-result", "Login first.");
         return;
       }
       try {
-        await postJson("/api/auth/token/revoke/", {}, accessToken);
-        setResult("login-result", "Access token revoked.");
+        await postJson("http://localhost:8000/api/auth/token/revoke/", {}, accessToken);
+        setAuthStatus("Logged out");
+        setText("login-result", "Access token revoked.");
       } catch (err) {
-        setResult("login-result", JSON.stringify(err));
+        setText("login-result", JSON.stringify(err));
       }
     });
 
-    document.getElementById("search-btn").addEventListener("click", async () => {
-      const q = document.getElementById("search-q").value;
-      const min = document.getElementById("search-min").value;
-      const max = document.getElementById("search-max").value;
-      const brand = document.getElementById("search-brand").value;
-      const params = new URLSearchParams();
-      if (q) params.append("search", q);
-      if (min) params.append("min_price", min);
-      if (max) params.append("max_price", max);
-      if (brand) params.append("brand", brand);
-
-      const res = await fetch(`/api/catalog/products/?${params.toString()}`);
-      const data = await res.json();
-      document.getElementById("search-output").textContent = JSON.stringify(data, null, 2);
-      setResult("search-result", `${data.length} products`);
-    });
-
-    document.getElementById("setup-2fa").addEventListener("click", async () => {
+    document.getElementById("twofa-setup-btn").addEventListener("click", async () => {
       if (!accessToken) {
-        setResult("setup-result", "Login first.");
+        setText("twofa-setup-result", "Login first.");
         return;
       }
       try {
-        const payload = await postJson("/api/auth/2fa/setup/", {}, accessToken);
-        setResult("setup-result", "Scan QR and verify with /api/auth/2fa/verify/");
-        const img = document.getElementById("qr-img");
+        const payload = await postJson("http://localhost:8000/api/auth/2fa/setup/", {}, accessToken);
+        setText("twofa-setup-result", "Scan QR and verify code.");
+        const img = document.getElementById("twofa-qr");
         img.src = `data:image/png;base64,${payload.qr_code_base64}`;
         img.style.display = "block";
       } catch (err) {
-        setResult("setup-result", JSON.stringify(err));
+        setText("twofa-setup-result", JSON.stringify(err));
       }
     });
 
-    document.getElementById("check-products").addEventListener("click", async () => {
-      const res = await fetch("/api/catalog/products/");
-      const data = await res.json();
-      document.getElementById("review-output").textContent = JSON.stringify(data, null, 2);
+    document.getElementById("twofa-verify-btn").addEventListener("click", async () => {
+      if (!accessToken) {
+        setText("twofa-verify-result", "Login first.");
+        return;
+      }
+      try {
+        const code = document.getElementById("twofa-code").value.trim();
+        if (!isValidTwoFACode(code)) {
+          setText("twofa-verify-result", "Enter a valid 6-8 digit code.");
+          return;
+        }
+        await postJson(
+          "http://localhost:8000/api/auth/2fa/verify/",
+          { code },
+          accessToken
+        );
+        setText("twofa-verify-result", "2FA enabled.");
+      } catch (err) {
+        setText("twofa-verify-result", JSON.stringify(err));
+      }
     });
 
-    document.getElementById("check-filters").addEventListener("click", async () => {
-      const res = await fetch("/api/catalog/products/?category=processors&ordering=price");
-      const data = await res.json();
-      document.getElementById("review-output").textContent = JSON.stringify(data, null, 2);
-    });
-
-    document.getElementById("check-suggest").addEventListener("click", async () => {
-      const res = await fetch("/api/catalog/suggest/?q=iron");
-      const data = await res.json();
-      document.getElementById("review-output").textContent = JSON.stringify(data, null, 2);
+    document.getElementById("twofa-disable-btn").addEventListener("click", async () => {
+      if (!accessToken) {
+        setText("twofa-verify-result", "Login first.");
+        return;
+      }
+      try {
+        const code = document.getElementById("twofa-code").value.trim();
+        if (!isValidTwoFACode(code)) {
+          setText("twofa-verify-result", "Enter a valid 6-8 digit code.");
+          return;
+        }
+        await postJson(
+          "http://localhost:8000/api/auth/2fa/disable/",
+          { code },
+          accessToken
+        );
+        setText("twofa-verify-result", "2FA disabled.");
+      } catch (err) {
+        setText("twofa-verify-result", JSON.stringify(err));
+      }
     });
 
     document.getElementById("reset-btn").addEventListener("click", async () => {
       try {
-        await postJson("/api/auth/password/reset/", {
-          email: document.getElementById("reset-email").value,
+        const email = document.getElementById("reset-email").value.trim();
+        if (!email) {
+          setText("reset-result", "Email is required.");
+          return;
+        }
+        if (!isValidEmail(email)) {
+          setText("reset-result", "Enter a valid email.");
+          return;
+        }
+        await postJson("http://localhost:8000/api/auth/password/reset/", {
+          email,
         });
-        setResult("reset-result", "Reset email sent (check console/email backend).");
+        setText("reset-result", "Reset email sent (check console/email backend)." );
       } catch (err) {
-        setResult("reset-result", JSON.stringify(err));
+        setText("reset-result", JSON.stringify(err));
       }
     });
+
+    document.getElementById("search-btn").addEventListener("click", async () => {
+      runSearch();
+    });
+
+    document.getElementById("search-q").addEventListener("input", (event) => {
+      const value = event.target.value;
+      if (suggestTimer) {
+        clearTimeout(suggestTimer);
+      }
+      suggestTimer = setTimeout(() => {
+        runSuggest(value);
+      }, 300);
+    });
+
+    document.getElementById("suggest-btn").addEventListener("click", async () => {
+      runSuggest();
+    });
+
+    document.getElementById("img-upload-btn").addEventListener("click", async () => {
+      if (!accessToken) {
+        setText("img-upload-result", "Login as admin first.");
+        return;
+      }
+      const productId = document.getElementById("img-product-id").value;
+      const altText = document.getElementById("img-alt").value;
+      const fileInput = document.getElementById("img-file");
+      if (!productId || !fileInput.files.length) {
+        setText("img-upload-result", "Product ID and image required.");
+        return;
+      }
+      const formData = new FormData();
+      formData.append("image", fileInput.files[0]);
+      formData.append("alt_text", altText);
+      try {
+        const res = await fetch(`http://localhost:8000/api/catalog/products/${productId}/images/`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: formData,
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) throw payload;
+        setText("img-upload-result", "Image uploaded.");
+      } catch (err) {
+        setText("img-upload-result", JSON.stringify(err));
+      }
+    });
+
+    runSearch();
   </script>
 </body>
 </html>

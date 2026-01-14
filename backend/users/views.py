@@ -5,6 +5,7 @@ from io import BytesIO
 import pyotp
 import qrcode
 import requests
+from django.shortcuts import render
 from django.contrib.auth import get_user_model
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from dj_rest_auth.registration.views import SocialLoginView
@@ -22,6 +23,10 @@ from .serializers import (
 )
 from .models import AccessTokenBlocklist
 from allauth.account.models import EmailAddress
+
+
+def password_reset_confirm_page(request, uid, token):
+    return render(request, "password_reset_confirm.html", {"uid": uid, "token": token})
 
 
 class RegisterView(APIView):
