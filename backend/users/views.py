@@ -28,6 +28,34 @@ from allauth.account.models import EmailAddress
 def password_reset_confirm_page(request, uid, token):
     return render(request, "password_reset_confirm.html", {"uid": uid, "token": token})
 
+def _get_user_from_google_token(access_token):
+    resp = requests.get(
+        "https://www.googleapis.com/oauth2/v3/userinfo",
+        headers={"Authorization": f"Bearer {access_token}"},
+        timeout=5,
+    )
+    if resp.status_code != 200:
+        return None, Response({"detail": "Invalid Google token"}, status=400)
+    data = resp.json()
+    email = data.get("email")
+    if not email:
+        return None, Response({"detail": "Email not found from Google"}, status=400)
+
+    user_model = get_user_model()
+    user = user_model.objects.filter(email__iexact=email).first()
+    if not user:
+        user = user_model.objects.create_user(
+            email=email,
+            password=None,
+            full_name=data.get("name", ""),
+        )
+    EmailAddress.objects.get_or_create(
+        user=user,
+        email=user.email,
+        defaults={"verified": True, "primary": True},
+    )
+    return user, None
+
 
 class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -164,31 +192,51 @@ class GoogleTokenLoginView(APIView):
         access_token = request.data.get("access_token")
         if not access_token:
             return Response({"detail": "access_token required"}, status=400)
-        resp = requests.get(
-            "https://www.googleapis.com/oauth2/v3/userinfo",
-            headers={"Authorization": f"Bearer {access_token}"},
+        user, error = _get_user_from_google_token(access_token)
+        if error:
+            return error
+        refresh = RefreshToken.for_user(user)
+        return Response({"refresh": str(refresh), "access": str(refresh.access_token)})
+
+
+class GoogleCodeLoginView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        code = request.data.get("code")
+        redirect_uri = request.data.get("redirect_uri")
+        if not code:
+            return Response({"detail": "code required"}, status=400)
+        if not redirect_uri:
+            return Response({"detail": "redirect_uri required"}, status=400)
+
+        from django.conf import settings
+
+        if not settings.GOOGLE_OAUTH_CLIENT_ID or not settings.GOOGLE_OAUTH_CLIENT_SECRET:
+            return Response({"detail": "Google OAuth not configured"}, status=400)
+
+        token_resp = requests.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": code,
+                "client_id": settings.GOOGLE_OAUTH_CLIENT_ID,
+                "client_secret": settings.GOOGLE_OAUTH_CLIENT_SECRET,
+                "redirect_uri": redirect_uri,
+                "grant_type": "authorization_code",
+            },
             timeout=5,
         )
-        if resp.status_code != 200:
-            return Response({"detail": "Invalid Google token"}, status=400)
-        data = resp.json()
-        email = data.get("email")
-        if not email:
-            return Response({"detail": "Email not found from Google"}, status=400)
+        if token_resp.status_code != 200:
+            return Response({"detail": "Invalid Google code"}, status=400)
 
-        user_model = get_user_model()
-        user = user_model.objects.filter(email__iexact=email).first()
-        if not user:
-            user = user_model.objects.create_user(
-                email=email,
-                password=None,
-                full_name=data.get("name", ""),
-            )
-        EmailAddress.objects.get_or_create(
-            user=user,
-            email=user.email,
-            defaults={"verified": True, "primary": True},
-        )
+        token_data = token_resp.json()
+        access_token = token_data.get("access_token")
+        if not access_token:
+            return Response({"detail": "Google access token missing"}, status=400)
+
+        user, error = _get_user_from_google_token(access_token)
+        if error:
+            return error
         refresh = RefreshToken.for_user(user)
         return Response({"refresh": str(refresh), "access": str(refresh.access_token)})
 

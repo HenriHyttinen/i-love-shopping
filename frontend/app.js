@@ -22,6 +22,43 @@ function setAuthStatus(text) {
   document.getElementById("auth-status").textContent = text;
 }
 
+async function handleGoogleRedirectCode() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("code");
+  if (!code) return;
+  try {
+    setText("google-result", "Completing Google login...");
+    const payload = await postJson("http://localhost:8000/api/auth/oauth/google-code/", {
+      code,
+      redirect_uri: window.location.origin,
+    });
+    accessToken = payload.access;
+    setAuthStatus("Logged in (JWT)");
+    setText("google-result", "Google login OK.");
+  } catch (err) {
+    setText("google-result", JSON.stringify(err));
+  } finally {
+    params.delete("code");
+    params.delete("scope");
+    params.delete("authuser");
+    params.delete("prompt");
+    const newUrl = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
+    window.history.replaceState({}, document.title, newUrl);
+  }
+}
+
+function setLoginTwoFAVisible(visible) {
+  const container = document.getElementById("login-2fa");
+  if (!container) return;
+  container.classList.toggle("hidden", !visible);
+}
+
+function isTwoFARequiredError(err) {
+  if (!err) return false;
+  const message = typeof err === "string" ? err : JSON.stringify(err);
+  return message.includes("Two-factor code required");
+}
+
 function tryRenderRecaptcha() {
   if (!recaptchaSiteKey || !window.grecaptcha || recaptchaWidgetId !== null) {
     return;
@@ -226,7 +263,15 @@ document.getElementById("login-btn").addEventListener("click", async () => {
     accessToken = payload.access;
     setAuthStatus("Logged in");
     setText("login-result", "Login ok. Access token stored in memory.");
+    if (!code) {
+      setLoginTwoFAVisible(false);
+    }
   } catch (err) {
+    if (isTwoFARequiredError(err)) {
+      setLoginTwoFAVisible(true);
+      setText("login-result", "2FA enabled. Enter your code to continue.");
+      return;
+    }
     setText("login-result", JSON.stringify(err));
   }
 });
@@ -241,25 +286,16 @@ document.getElementById("google-login-btn").addEventListener("click", async () =
     setText("google-result", "Google script not loaded yet.");
     return;
   }
-  const tokenClient = google.accounts.oauth2.initTokenClient({
+  const codeClient = google.accounts.oauth2.initCodeClient({
     client_id: clientId,
     scope: "openid email profile",
-    callback: async (resp) => {
-      try {
-        const payload = await postJson("http://localhost:8000/api/auth/oauth/google/", {
-          access_token: resp.access_token,
-        });
-        accessToken = payload.access;
-        setAuthStatus("Logged in (JWT)");
-        setText("google-result", "Google login OK.");
-      } catch (err) {
-        setText("google-result", JSON.stringify(err));
-      }
-    },
+    ux_mode: "redirect",
+    redirect_uri: window.location.origin,
   });
-  tokenClient.requestAccessToken();
+  codeClient.requestCode();
 });
 
+handleGoogleRedirectCode();
 loadGoogleClientId();
 loadRecaptchaSiteKey();
 
@@ -328,6 +364,7 @@ document.getElementById("twofa-verify-btn").addEventListener("click", async () =
       accessToken
     );
     setText("twofa-verify-result", "2FA enabled.");
+    setLoginTwoFAVisible(true);
   } catch (err) {
     setText("twofa-verify-result", JSON.stringify(err));
   }
@@ -350,6 +387,7 @@ document.getElementById("twofa-disable-btn").addEventListener("click", async () 
       accessToken
     );
     setText("twofa-verify-result", "2FA disabled.");
+    setLoginTwoFAVisible(false);
   } catch (err) {
     setText("twofa-verify-result", JSON.stringify(err));
   }

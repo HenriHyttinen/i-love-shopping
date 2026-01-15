@@ -43,8 +43,10 @@
       <input id="login-email" type="email" placeholder="student@example.com" required>
       <label>Password</label>
       <input id="login-password" type="password" placeholder="StrongPass123!" required>
-      <label>2FA code</label>
-      <input id="login-code" type="text" placeholder="123456">
+      <div id="login-2fa" class="hidden">
+        <label>2FA code</label>
+        <input id="login-code" type="text" placeholder="123456">
+      </div>
       <button id="login-btn">Login</button>
       <button id="logout-all-btn">Logout All</button>
       <button id="revoke-btn">Revoke Access</button>

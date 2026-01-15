@@ -203,6 +203,10 @@ details {
   color: var(--muted);
 }
 
+.hidden {
+  display: none;
+}
+
 @media (max-width: 640px) {
   header {
     align-items: flex-start;

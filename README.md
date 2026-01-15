@@ -115,6 +115,7 @@ Latest test runs:
 3) Authorized JavaScript origins:
    - `http://localhost:8000`
 4) Authorized redirect URIs:
+   - `http://localhost:8000`
    - `http://localhost:8000/api/auth/oauth/google/`
 5) Copy Client ID/Secret into `backend/.env`:
    - `GOOGLE_OAUTH_CLIENT_ID=...`
@@ -122,6 +123,8 @@ Latest test runs:
 6) In Google Cloud Console, enable the “Google People API” if required.
 7) Mini frontend: paste the Client ID into the Google OAuth section to test login.
    - The mini frontend will auto-load it from `/api/auth/oauth/google-client-id/`.
+   - Demo flow uses a redirect-based OAuth code exchange for better browser compatibility.
+   - OAuth changes can take several minutes to propagate; hard reload after updates.
 8) Existing accounts can be linked by email (SOCIALACCOUNT_QUERY_EMAIL).
    - Social account adapter will auto-connect existing users by email.
 
@@ -148,6 +151,7 @@ Endpoints:
 ## Common Setup Issues
 - Backend fails on startup: check `.env` values and run migrations.
 - OAuth fails: verify redirect URI matches exactly and client ID/secret are correct.
+- OAuth redirect_uri_mismatch: ensure the exact origin (`http://localhost:8000`) is listed as an authorized redirect URI and wait for Google to propagate changes.
 - CAPTCHA fails: ensure `RECAPTCHA_SECRET_KEY` is set (empty key skips validation).
 - Docker port 5432 in use: stop local Postgres or change the Docker port mapping.
 - docker-compose v1 ContainerConfig error: run `docker-compose down --remove-orphans` and `docker-compose rm -f`.
@@ -160,7 +164,7 @@ Endpoints:
 cp backend/envtemplate.txt backend/.env
 ```
 2) Fill in Google OAuth + reCAPTCHA secrets in `backend/.env`.
-   - Google OAuth redirect URI: `http://localhost:8000/api/auth/oauth/google/`
+   - Google OAuth redirect URIs: `http://localhost:8000` and `http://localhost:8000/api/auth/oauth/google/`
    - Allowed JS origins: `http://localhost:8000`
 3) Start everything
 ```
@@ -215,6 +219,7 @@ python manage.py cleanup_access_tokens
 ### Auth
 - Register (with CAPTCHA token): `POST /auth/register/`
 - Login (2FA code optional): `POST /auth/login/`
+  - 2FA is only required after a user enables it via `/auth/2fa/verify/`.
 - Refresh (rotation enabled): `POST /auth/token/refresh/`
 - Logout (blacklist refresh): `POST /auth/logout/`
 - Logout all sessions: `POST /auth/logout-all/`
@@ -228,6 +233,8 @@ python manage.py cleanup_access_tokens
 Google OAuth:
 - `POST /auth/oauth/google/`
   - Body: `{"access_token":"<google-access-token>"}`
+- `POST /auth/oauth/google-code/`
+  - Body: `{"code":"<oauth-code>","redirect_uri":"http://localhost:8000"}`
 - (Optional) Allauth flow: `POST /auth/oauth/google-allauth/`
 
 Password reset endpoints (dj-rest-auth):
