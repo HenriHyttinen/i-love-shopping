@@ -255,11 +255,11 @@ document.getElementById("login-btn").addEventListener("click", async () => {
       setText("login-result", "2FA code must be 6-8 digits.");
       return;
     }
-    const payload = await postJson("http://localhost:8000/api/auth/login/", {
-      email,
-      password,
-      code,
-    });
+    const loginPayload = { email, password };
+    if (code) {
+      loginPayload.code = code;
+    }
+    const payload = await postJson("http://localhost:8000/api/auth/login/", loginPayload);
     accessToken = payload.access;
     setAuthStatus("Logged in");
     setText("login-result", "Login ok. Access token stored in memory.");
