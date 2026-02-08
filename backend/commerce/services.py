@@ -38,6 +38,20 @@ class PaymentResult:
 def get_or_create_cart(user=None, guest_token: str = "") -> Cart:
     if user and user.is_authenticated:
         cart, _ = Cart.objects.get_or_create(user=user)
+        if guest_token:
+            guest_cart = Cart.objects.filter(guest_token=guest_token).prefetch_related("items").first()
+            if guest_cart and guest_cart.items.exists():
+                for item in guest_cart.items.select_related("product"):
+                    merged, created = CartItem.objects.get_or_create(
+                        cart=cart,
+                        product=item.product,
+                        defaults={"quantity": item.quantity, "unit_price": item.unit_price},
+                    )
+                    if not created:
+                        merged.quantity += item.quantity
+                        merged.unit_price = item.unit_price
+                        merged.save(update_fields=["quantity", "unit_price", "updated_at"])
+                guest_cart.delete()
         return cart
     if not guest_token:
         guest_token = Cart.generate_guest_token()
