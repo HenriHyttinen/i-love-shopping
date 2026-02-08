@@ -279,6 +279,10 @@ python manage.py cleanup_access_tokens
 - API base: `http://localhost:8000/api`
 - Demo page: `http://localhost:8000/`
 - Note: the demo UI is served by Django at `http://localhost:8000/`.
+- Focused testing pages:
+  - `http://localhost:8000/cart/`
+  - `http://localhost:8000/checkout/`
+  - `http://localhost:8000/orders/`
 
 ### Auth
 - Register (with CAPTCHA token): `POST /auth/register/`

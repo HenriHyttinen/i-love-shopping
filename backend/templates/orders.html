@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Orders | Hardware Shop</title>
+  <style>
+    body { margin:0; font-family:"IBM Plex Sans", sans-serif; background:#0b111b; color:#eef1f6; }
+    header { padding:16px 20px; background:#101a2b; border-bottom:1px solid #25344a; }
+    a { color:#7fc0ff; text-decoration:none; margin-right:14px; }
+    main { max-width:900px; margin:20px auto; padding:0 16px; }
+    .card { background:#141c2b; border:1px solid #2a3a52; padding:16px; margin-bottom:14px; }
+    label { display:block; margin:8px 0 4px; }
+    input, select, button { width:100%; box-sizing:border-box; padding:10px; margin-bottom:8px; background:#0c1423; color:#eef1f6; border:1px solid #2a3a52; }
+    button { cursor:pointer; background:#2f6fb8; }
+    pre { background:#0b111b; padding:10px; overflow:auto; }
+    .result { color:#9aa6b6; min-height:18px; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Hardware Shop Demo</strong>
+    <div style="margin-top:8px">
+      <a href="/">Home</a><a href="/cart/">Cart</a><a href="/checkout/">Checkout</a><a href="/orders/">Orders</a>
+    </div>
+  </header>
+  <main>
+    <section class="card">
+      <h2>Login</h2>
+      <label>Email</label><input id="email" type="email" placeholder="user@example.com">
+      <label>Password</label><input id="password" type="password">
+      <button id="login-btn">Login</button>
+      <div class="result" id="auth-result"></div>
+    </section>
+
+    <section class="card">
+      <h2>Order Management</h2>
+      <label>Status</label>
+      <select id="status">
+        <option value="">all</option>
+        <option value="pending_payment">pending_payment</option>
+        <option value="payment_successful">payment_successful</option>
+        <option value="payment_failed">payment_failed</option>
+        <option value="cancelled">cancelled</option>
+      </select>
+      <label>Date from</label><input id="from" type="text" placeholder="2026-01-01">
+      <label>Date to</label><input id="to" type="text" placeholder="2026-12-31">
+      <button id="list-btn">List Orders</button>
+
+      <label>Order ID</label><input id="order-id" type="number" placeholder="1">
+      <button id="detail-btn">Order Detail</button>
+      <button id="cancel-btn">Cancel Order</button>
+
+      <div class="result" id="result"></div>
+      <pre id="output">[]</pre>
+    </section>
+  </main>
+  <script>
+    const API = "http://localhost:8000/api/commerce";
+    let accessToken = "";
+    function headers() {
+      const h = {"Content-Type":"application/json"};
+      if (accessToken) h.Authorization = `Bearer ${accessToken}`;
+      return h;
+    }
+    function setText(id, t) { document.getElementById(id).textContent = t; }
+
+    document.getElementById("login-btn").onclick = async () => {
+      try {
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
+        const res = await fetch("http://localhost:8000/api/auth/login/", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({email,password}) });
+        const data = await res.json(); if (!res.ok) throw data;
+        accessToken = data.access;
+        setText("auth-result", "Logged in.");
+      } catch (e) { setText("auth-result", JSON.stringify(e)); }
+    };
+
+    document.getElementById("list-btn").onclick = async () => {
+      try {
+        const params = new URLSearchParams();
+        const status = document.getElementById("status").value;
+        const from = document.getElementById("from").value.trim();
+        const to = document.getElementById("to").value.trim();
+        if (status) params.append("status", status);
+        if (from) params.append("date_from", from);
+        if (to) params.append("date_to", to);
+        const res = await fetch(`${API}/orders/?${params.toString()}`, { headers: headers() });
+        const data = await res.json(); if (!res.ok) throw data;
+        document.getElementById("output").textContent = JSON.stringify(data, null, 2);
+        setText("result", `${data.length} orders`);
+      } catch (e) { setText("result", JSON.stringify(e)); }
+    };
+
+    document.getElementById("detail-btn").onclick = async () => {
+      try {
+        const id = Number(document.getElementById("order-id").value);
+        const res = await fetch(`${API}/orders/${id}/`, { headers: headers() });
+        const data = await res.json(); if (!res.ok) throw data;
+        document.getElementById("output").textContent = JSON.stringify(data, null, 2);
+        setText("result", `Order ${id} loaded.`);
+      } catch (e) { setText("result", JSON.stringify(e)); }
+    };
+
+    document.getElementById("cancel-btn").onclick = async () => {
+      try {
+        const id = Number(document.getElementById("order-id").value);
+        const res = await fetch(`${API}/orders/${id}/cancel/`, { method:"POST", headers: headers(), body: JSON.stringify({}) });
+        const data = await res.json(); if (!res.ok) throw data;
+        setText("result", data.detail || "Cancelled");
+      } catch (e) { setText("result", JSON.stringify(e)); }
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cart | Hardware Shop</title>
+  <style>
+    body { margin: 0; font-family: "IBM Plex Sans", sans-serif; background:#0b111b; color:#eef1f6; }
+    header { padding:16px 20px; background:#101a2b; border-bottom:1px solid #25344a; }
+    a { color:#7fc0ff; text-decoration:none; margin-right:14px; }
+    main { max-width:900px; margin:20px auto; padding:0 16px; }
+    .card { background:#141c2b; border:1px solid #2a3a52; padding:16px; margin-bottom:14px; }
+    label { display:block; margin:8px 0 4px; }
+    input, button { width:100%; box-sizing:border-box; padding:10px; margin-bottom:8px; background:#0c1423; color:#eef1f6; border:1px solid #2a3a52; }
+    button { cursor:pointer; background:#2f6fb8; }
+    pre { background:#0b111b; padding:10px; overflow:auto; }
+    .result { color:#9aa6b6; min-height:18px; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Hardware Shop Demo</strong>
+    <div style="margin-top:8px">
+      <a href="/">Home</a>
+      <a href="/cart/">Cart</a>
+      <a href="/checkout/">Checkout</a>
+      <a href="/orders/">Orders</a>
+    </div>
+  </header>
+  <main>
+    <section class="card">
+      <h2>Cart Actions</h2>
+      <label>Product ID</label>
+      <input id="product-id" type="number" placeholder="1">
+      <label>Quantity</label>
+      <input id="qty" type="number" value="1" min="1">
+      <button id="add-btn">Add to Cart</button>
+
+      <label>Cart Item ID</label>
+      <input id="item-id" type="number" placeholder="1">
+      <label>New Quantity (0 removes)</label>
+      <input id="item-qty" type="number" value="1" min="0">
+      <button id="update-btn">Update Item</button>
+      <button id="remove-btn">Remove Item</button>
+      <button id="refresh-btn">Refresh Cart</button>
+
+      <div class="result" id="result"></div>
+      <pre id="output">{"items":[]}</pre>
+    </section>
+  </main>
+  <script>
+    const API = "http://localhost:8000/api/commerce";
+    const TOKEN_KEY = "guest_cart_token";
+
+    function token() { return localStorage.getItem(TOKEN_KEY) || ""; }
+    function setToken(value) { if (value) localStorage.setItem(TOKEN_KEY, value); }
+    function headers() {
+      const h = {"Content-Type":"application/json"};
+      const t = token();
+      if (t) h["X-Guest-Cart-Token"] = t;
+      return h;
+    }
+    function setResult(text) { document.getElementById("result").textContent = text; }
+    function render(payload) {
+      setToken(payload.guest_cart_token || "");
+      document.getElementById("output").textContent = JSON.stringify(payload, null, 2);
+      setResult(`Items: ${payload.item_count}, subtotal: ${payload.subtotal}`);
+    }
+
+    async function refreshCart() {
+      const res = await fetch(`${API}/cart/`, { headers: headers() });
+      const data = await res.json();
+      if (!res.ok) throw data;
+      render(data);
+    }
+
+    document.getElementById("add-btn").onclick = async () => {
+      try {
+        const product_id = Number(document.getElementById("product-id").value);
+        const quantity = Number(document.getElementById("qty").value || 1);
+        const res = await fetch(`${API}/cart/items/`, { method:"POST", headers: headers(), body: JSON.stringify({product_id, quantity}) });
+        const data = await res.json();
+        if (!res.ok) throw data;
+        render(data);
+      } catch (e) { setResult(JSON.stringify(e)); }
+    };
+
+    document.getElementById("update-btn").onclick = async () => {
+      try {
+        const itemId = Number(document.getElementById("item-id").value);
+        const quantity = Number(document.getElementById("item-qty").value);
+        const res = await fetch(`${API}/cart/items/${itemId}/`, { method:"PATCH", headers: headers(), body: JSON.stringify({quantity}) });
+        const data = await res.json();
+        if (!res.ok) throw data;
+        render(data);
+      } catch (e) { setResult(JSON.stringify(e)); }
+    };
+
+    document.getElementById("remove-btn").onclick = async () => {
+      try {
+        const itemId = Number(document.getElementById("item-id").value);
+        const res = await fetch(`${API}/cart/items/${itemId}/`, { method:"DELETE", headers: headers() });
+        const data = await res.json();
+        if (!res.ok) throw data;
+        render(data);
+      } catch (e) { setResult(JSON.stringify(e)); }
+    };
+
+    document.getElementById("refresh-btn").onclick = async () => {
+      try { await refreshCart(); } catch (e) { setResult(JSON.stringify(e)); }
+    };
+
+    refreshCart().catch(() => {});
+  </script>
+</body>
+</html>

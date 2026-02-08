@@ -11,6 +11,9 @@ from users.views import password_reset_confirm_page
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", TemplateView.as_view(template_name="index.html"), name="home"),
+    path("cart/", TemplateView.as_view(template_name="cart.html"), name="cart_page"),
+    path("checkout/", TemplateView.as_view(template_name="checkout.html"), name="checkout_page"),
+    path("orders/", TemplateView.as_view(template_name="orders.html"), name="orders_page"),
     path("api/auth/reset/<uid>/<token>/", password_reset_confirm_page, name="password_reset_confirm"),
     path("api/auth/", include("users.urls")),
     path("api/catalog/", include("catalog.urls")),
