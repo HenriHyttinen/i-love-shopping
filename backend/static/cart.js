@@ -118,10 +118,50 @@
     }
   }
 
+  async function adjustQuantity(itemId, delta) {
+    try {
+      const cart = await U.request(U.API + "/commerce/cart/");
+      const item = (cart.items || []).find((i) => i.id === itemId);
+      if (!item) {
+        U.setStatus("cart-status", "Item not found in cart.", "warn");
+        return;
+      }
+      const nextQty = Math.max(0, Number(item.quantity) + Number(delta));
+      const data = await U.request(U.API + "/commerce/cart/items/" + itemId + "/", {
+        method: "PATCH",
+        body: { quantity: nextQty },
+      });
+      renderCart(data);
+      U.setStatus("cart-status", "Quantity updated.", "ok");
+    } catch (err) {
+      U.setStatus("cart-status", JSON.stringify(err), "error");
+    }
+  }
+
   U.byId("add-btn").addEventListener("click", () => {
     const productId = Number(U.byId("product-id").value);
     const qty = Number(U.byId("quantity").value || 1);
     addToCart(productId, qty);
+  });
+
+  U.byId("dec-btn").addEventListener("click", () => {
+    const itemId = Number(U.byId("update-item-id").value);
+    const dec = Number(U.byId("decrease-by").value || 1);
+    if (!itemId) {
+      U.setStatus("cart-status", "Provide item id.", "warn");
+      return;
+    }
+    adjustQuantity(itemId, -dec);
+  });
+
+  U.byId("inc-btn").addEventListener("click", () => {
+    const itemId = Number(U.byId("update-item-id").value);
+    const inc = Number(U.byId("increase-by").value || 1);
+    if (!itemId) {
+      U.setStatus("cart-status", "Provide item id.", "warn");
+      return;
+    }
+    adjustQuantity(itemId, inc);
   });
 
   U.byId("refresh-btn").addEventListener("click", loadCart);
