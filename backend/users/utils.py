@@ -3,6 +3,8 @@ from django.conf import settings
 
 
 def verify_recaptcha(token):
+    if settings.DEBUG:
+        return True
     if not settings.RECAPTCHA_SECRET_KEY:
         return True
     if not token:
