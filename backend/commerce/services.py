@@ -354,4 +354,5 @@ def place_order_from_cart(
     consume_payment_messages(order_id=order.id)
 
     cart.items.all().delete()
+    order.refresh_from_db()
     return order, transaction_obj
