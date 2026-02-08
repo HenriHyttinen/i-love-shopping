@@ -36,6 +36,8 @@
         <label>Login Email</label><input id="auth-email" type="email" placeholder="user@example.com">
         <label>Password</label><input id="auth-password" type="password" placeholder="StrongPass123!">
         <button id="auth-login-btn">Login</button>
+        <label>Access token (optional)</label><input id="auth-token" type="text" placeholder="paste access token">
+        <button class="secondary" id="auth-token-btn">Use Token</button>
       </div>
       <div>
         <label>Full Name</label><input id="full_name" type="text" placeholder="Buyer Name">
@@ -70,6 +72,11 @@
       <button id="place-btn">Place Order</button>
     </div>
     <div id="checkout-status" class="status info">Ready.</div>
+  </section>
+
+  <section class="panel">
+    <h2>Cart Summary</h2>
+    <div id="cart-summary" class="muted">Loading...</div>
   </section>
 
   <section id="confirm" class="panel"></section>

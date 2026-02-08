@@ -52,6 +52,16 @@
     }
   }
 
+  function useToken() {
+    const token = U.byId("auth-token").value.trim();
+    if (!token) {
+      U.setStatus("checkout-status", "Paste an access token first.", "warn");
+      return;
+    }
+    U.setAccessToken(token);
+    U.setStatus("checkout-status", "Access token loaded.", "ok");
+  }
+
   async function prefill() {
     try {
       const data = await U.request(U.API + "/commerce/checkout/prefill/", { auth: true });
@@ -67,10 +77,25 @@
     try {
       const data = await U.request(U.API + "/commerce/checkout/summary/", { auth: true });
       U.byId("checkout-json").textContent = JSON.stringify(data, null, 2);
+      renderSummary(data);
       U.setStatus("checkout-status", "Order summary loaded.", "info");
     } catch (err) {
       U.setStatus("checkout-status", JSON.stringify(err), "error");
     }
+  }
+
+  function renderSummary(data) {
+    if (!data || !data.items) {
+      U.byId("cart-summary").textContent = "Cart is empty.";
+      return;
+    }
+    const rows = data.items
+      .map((item) => `<li>${U.esc(item.name)} x ${item.quantity} • ${U.fmtMoney(item.line_total)}</li>`)
+      .join("");
+    U.byId("cart-summary").innerHTML = `
+      <div><strong>${data.item_count}</strong> items, subtotal ${U.fmtMoney(data.subtotal)}</div>
+      <ul style="margin:8px 0 0 18px">${rows}</ul>
+    `;
   }
 
   async function initStripe() {
@@ -131,6 +156,7 @@
   }
 
   U.byId("auth-login-btn").addEventListener("click", login);
+  U.byId("auth-token-btn").addEventListener("click", useToken);
   U.byId("prefill-btn").addEventListener("click", prefill);
   U.byId("summary-btn").addEventListener("click", summary);
   U.byId("place-btn").addEventListener("click", placeOrder);
