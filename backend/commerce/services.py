@@ -98,21 +98,56 @@ def recommended_products(cart: Cart, limit: int = 4) -> list:
 
 def simulate_payment(
     payment_provider: str,
-    card_number: str,
-    expiry_month: int,
-    expiry_year: int,
-    cvv: str,
+    card_number: str = "",
+    expiry_month: int | None = None,
+    expiry_year: int | None = None,
+    cvv: str = "",
+    payment_token: str = "",
 ) -> PaymentResult:
     if payment_provider not in {"stripe_sandbox", "paypal_sandbox"}:
         return PaymentResult(status=PaymentTransaction.STATUS_FAILURE, failure_code="unsupported_provider", message="Unsupported payment provider.")
-    if len(card_number) < 12 or not card_number.isdigit():
-        return PaymentResult(status=PaymentTransaction.STATUS_FAILURE, failure_code="invalid_card_number", message="Invalid card number.")
-    if len(cvv) not in {3, 4} or not cvv.isdigit():
-        return PaymentResult(status=PaymentTransaction.STATUS_FAILURE, failure_code="invalid_cvv", message="Invalid CVV.")
+    if payment_token:
+        token_failure_map = {
+            "tok_fail_insufficient_funds": ("insufficient_funds", "Card has insufficient funds."),
+            "tok_fail_invalid_card": ("invalid_card_number", "Card number was declined by provider."),
+            "tok_fail_expired_card": ("expired_card", "Card has expired."),
+            "tok_fail_gateway_timeout": ("gateway_timeout", "Payment gateway timeout. Please retry."),
+        }
+        if payment_token in token_failure_map:
+            failure_code, message = token_failure_map[payment_token]
+            return PaymentResult(
+                status=PaymentTransaction.STATUS_FAILURE,
+                failure_code=failure_code,
+                message=message,
+            )
+        return PaymentResult(status=PaymentTransaction.STATUS_SUCCESS)
 
+    if len(card_number) < 12 or not card_number.isdigit():
+        return PaymentResult(
+            status=PaymentTransaction.STATUS_FAILURE,
+            failure_code="invalid_card_number",
+            message="Invalid card number.",
+        )
+    if len(cvv) not in {3, 4} or not cvv.isdigit():
+        return PaymentResult(
+            status=PaymentTransaction.STATUS_FAILURE,
+            failure_code="invalid_cvv",
+            message="Invalid CVV.",
+        )
+
+    if expiry_month is None or expiry_year is None:
+        return PaymentResult(
+            status=PaymentTransaction.STATUS_FAILURE,
+            failure_code="invalid_expiry",
+            message="Expiry date is required.",
+        )
     now = datetime.utcnow()
     if expiry_year < now.year or (expiry_year == now.year and expiry_month < now.month):
-        return PaymentResult(status=PaymentTransaction.STATUS_FAILURE, failure_code="expired_card", message="Card has expired.")
+        return PaymentResult(
+            status=PaymentTransaction.STATUS_FAILURE,
+            failure_code="expired_card",
+            message="Card has expired.",
+        )
 
     code_map = {
         "4000000000009995": ("insufficient_funds", "Card has insufficient funds."),
@@ -277,6 +312,7 @@ def place_order_from_cart(
         encrypted_provider_payload=encrypt_json(
             {
                 "provider": payment_method,
+                "payment_token": payment_payload.get("payment_token", ""),
                 "card_last4": payment_payload.get("card_number", "")[-4:],
                 "expiry_month": payment_payload.get("expiry_month"),
                 "expiry_year": payment_payload.get("expiry_year"),
@@ -288,9 +324,10 @@ def place_order_from_cart(
     result = simulate_payment(
         payment_provider=payment_method,
         card_number=payment_payload.get("card_number", ""),
-        expiry_month=int(payment_payload.get("expiry_month")),
-        expiry_year=int(payment_payload.get("expiry_year")),
+        expiry_month=int(payment_payload["expiry_month"]) if payment_payload.get("expiry_month") else None,
+        expiry_year=int(payment_payload["expiry_year"]) if payment_payload.get("expiry_year") else None,
         cvv=payment_payload.get("cvv", ""),
+        payment_token=payment_payload.get("payment_token", ""),
     )
     if result.status == PaymentTransaction.STATUS_SUCCESS:
         transaction_obj.status = PaymentTransaction.STATUS_SUCCESS

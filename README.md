@@ -228,6 +228,8 @@ cp backend/envtemplate.txt backend/.env
    - Allowed JS origins: `http://localhost:8000`
    - Set `COMMERCE_ENCRYPTION_KEY` for encrypted order/payment data at rest (Fernet key).  
      If omitted, a fallback key is derived from `SECRET_KEY` for development.
+   - Optional Stripe Elements secure form:
+     - `STRIPE_PUBLISHABLE_KEY=pk_test_...`
 3) Start everything
 ```
 docker-compose up --build
@@ -337,6 +339,7 @@ Upload rules: PNG/JPEG only, max 2MB, max 5 images per product, oversized images
 - Guest carts use `X-Guest-Cart-Token`; logged-in users get persistent per-user carts.
 - Checkout:
   - `GET /commerce/checkout/prefill/` (prefills known user info)
+  - `GET /commerce/checkout/payment-config/` (returns Stripe publishable key for secure card element)
   - `GET /commerce/checkout/summary/`
   - `POST /commerce/checkout/place-order/`
 - Order management:
@@ -347,6 +350,7 @@ Upload rules: PNG/JPEG only, max 2MB, max 5 images per product, oversized images
 Payment simulation behavior:
 - Providers: `stripe_sandbox`, `paypal_sandbox`
 - Example success card: `4242424242424242`
+- If Stripe publishable key is configured, frontend can use Stripe secure Card Element and send tokenized `payment_token` instead of raw card fields.
 - Failure scenarios:
   - `4000000000009995` → insufficient funds
   - `4000000000000002` → invalid card number
@@ -362,6 +366,10 @@ Security and data handling:
 - Raw card data is never persisted.
 - Stored order/payment payloads (shipping address, payment metadata) are encrypted at rest.
 - Checkout stock updates use transactional row locking to prevent overselling on concurrent payments.
+
+## Task Specs
+- Project 1 specification: `task.md`
+- Project 2 specification: `task2.md`
 
 ## Notes for Review
 - JWT access tokens are intended for in-memory storage on the client.

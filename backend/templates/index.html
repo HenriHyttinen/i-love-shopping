@@ -352,6 +352,12 @@
       <input id="cart-qty" type="number" value="1" min="1">
       <button id="cart-add-btn">Add to Cart</button>
       <button id="cart-refresh-btn">Refresh Cart</button>
+      <label>Cart Item ID</label>
+      <input id="cart-item-id" type="number" placeholder="1">
+      <label>New Quantity (0 removes)</label>
+      <input id="cart-item-qty" type="number" min="0" value="1">
+      <button id="cart-update-btn">Update Item</button>
+      <button id="cart-remove-btn">Remove Item</button>
       <div class="result" id="cart-result"></div>
       <details>
         <summary>Cart JSON</summary>
@@ -425,6 +431,12 @@
           <input id="co-cvv" type="text" placeholder="123">
         </div>
       </div>
+      <p class="result">If `STRIPE_PUBLISHABLE_KEY` is configured, Stripe secure element will be used for card input.</p>
+      <div id="stripe-card-row" class="hidden">
+        <label>Stripe Card Element (secure iframe)</label>
+        <div id="stripe-card-element" style="padding:10px;border:1px solid #2a3a52;background:#0c1423;"></div>
+        <div class="result" id="stripe-card-result"></div>
+      </div>
       <button id="checkout-prefill-btn">Prefill (Logged User)</button>
       <button id="checkout-summary-btn">Order Summary</button>
       <button id="checkout-btn">Place Order</button>
@@ -476,10 +488,13 @@
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://www.google.com/recaptcha/api.js?render=explicit&onload=onRecaptchaLoaded" async defer></script>
+  <script src="https://js.stripe.com/v3/" async defer></script>
   <script>
     let accessToken = "";
     let recaptchaSiteKey = "";
     let recaptchaWidgetId = null;
+    let stripe = null;
+    let stripeCardElement = null;
 
     function isValidEmail(value) {
       return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -491,6 +506,22 @@
 
     function isValidTwoFACode(value) {
       return /^[0-9]{6,8}$/.test(value);
+    }
+
+    function isValidPhone(value) {
+      return /^[+0-9()\-\s]{7,20}$/.test(value);
+    }
+
+    function isValidPostalCode(value) {
+      return /^[A-Za-z0-9\-\s]{3,12}$/.test(value);
+    }
+
+    function isValidCardNumber(value) {
+      return /^[0-9]{12,19}$/.test(value);
+    }
+
+    function isValidCvv(value) {
+      return /^[0-9]{3,4}$/.test(value);
     }
 
     function setText(id, text) {
@@ -568,6 +599,36 @@
         }
       } catch (_) {
         setText("reg-result", "Could not load reCAPTCHA site key.");
+      }
+    }
+
+    async function initStripeElements() {
+      try {
+        const data = await getJson("http://localhost:8000/api/commerce/checkout/payment-config/");
+        if (!data.stripe_publishable_key || !window.Stripe) {
+          return;
+        }
+        stripe = Stripe(data.stripe_publishable_key);
+        const elements = stripe.elements();
+        stripeCardElement = elements.create("card", {
+          hidePostalCode: true,
+          style: {
+            base: {
+              color: "#eef1f6",
+              fontFamily: "IBM Plex Sans, Segoe UI, sans-serif",
+              fontSize: "14px",
+              "::placeholder": { color: "#9aa6b6" },
+            },
+            invalid: { color: "#ff7b7b" },
+          },
+        });
+        stripeCardElement.mount("#stripe-card-element");
+        stripeCardElement.on("change", (event) => {
+          setText("stripe-card-result", event.error ? event.error.message : "");
+        });
+        document.getElementById("stripe-card-row").classList.remove("hidden");
+      } catch (_) {
+        // Stripe is optional; checkout still supports fallback test card fields.
       }
     }
 
@@ -988,6 +1049,40 @@
       loadCart();
     });
 
+    document.getElementById("cart-update-btn").addEventListener("click", async () => {
+      try {
+        const itemId = Number(document.getElementById("cart-item-id").value);
+        const quantity = Number(document.getElementById("cart-item-qty").value);
+        const res = await fetch(`http://localhost:8000/api/commerce/cart/items/${itemId}/`, {
+          method: "PATCH",
+          headers: authHeaders(),
+          body: JSON.stringify({ quantity }),
+        });
+        const payload = await res.json();
+        if (!res.ok) throw payload;
+        document.getElementById("cart-output").textContent = JSON.stringify(payload, null, 2);
+        setText("cart-result", "Cart item updated.");
+      } catch (err) {
+        setText("cart-result", JSON.stringify(err));
+      }
+    });
+
+    document.getElementById("cart-remove-btn").addEventListener("click", async () => {
+      try {
+        const itemId = Number(document.getElementById("cart-item-id").value);
+        const res = await fetch(`http://localhost:8000/api/commerce/cart/items/${itemId}/`, {
+          method: "DELETE",
+          headers: authHeaders(),
+        });
+        const payload = await res.json();
+        if (!res.ok) throw payload;
+        document.getElementById("cart-output").textContent = JSON.stringify(payload, null, 2);
+        setText("cart-result", "Cart item removed.");
+      } catch (err) {
+        setText("cart-result", JSON.stringify(err));
+      }
+    });
+
     document.getElementById("checkout-prefill-btn").addEventListener("click", async () => {
       try {
         const res = await fetch("http://localhost:8000/api/commerce/checkout/prefill/", {
@@ -999,6 +1094,10 @@
         document.getElementById("co-email").value = payload.email || "";
         setText("checkout-result", "Prefill loaded.");
       } catch (err) {
+        if (err instanceof TypeError) {
+          setText("checkout-result", "Network error. Please check connection and retry.");
+          return;
+        }
         setText("checkout-result", JSON.stringify(err));
       }
     });
@@ -1019,24 +1118,78 @@
 
     document.getElementById("checkout-btn").addEventListener("click", async () => {
       try {
+        const fullName = document.getElementById("co-name").value.trim();
+        const email = document.getElementById("co-email").value.trim();
+        const phone = document.getElementById("co-phone").value.trim();
+        const shippingAddress = {
+          line1: document.getElementById("co-line1").value.trim(),
+          city: document.getElementById("co-city").value.trim(),
+          state: document.getElementById("co-state").value.trim(),
+          postal_code: document.getElementById("co-postal").value.trim(),
+          country: document.getElementById("co-country").value.trim(),
+        };
+        if (!fullName || !email || !phone || !shippingAddress.line1 || !shippingAddress.city || !shippingAddress.state || !shippingAddress.postal_code || !shippingAddress.country) {
+          setText("checkout-result", "Missing required fields.");
+          return;
+        }
+        if (!isValidEmail(email)) {
+          setText("checkout-result", "Invalid email format.");
+          return;
+        }
+        if (!isValidPhone(phone)) {
+          setText("checkout-result", "Invalid phone format.");
+          return;
+        }
+        if (!isValidPostalCode(shippingAddress.postal_code)) {
+          setText("checkout-result", "Invalid address format.");
+          return;
+        }
+
         const payload = {
-          full_name: document.getElementById("co-name").value.trim(),
-          email: document.getElementById("co-email").value.trim(),
-          phone: document.getElementById("co-phone").value.trim(),
-          shipping_address: {
-            line1: document.getElementById("co-line1").value.trim(),
-            city: document.getElementById("co-city").value.trim(),
-            state: document.getElementById("co-state").value.trim(),
-            postal_code: document.getElementById("co-postal").value.trim(),
-            country: document.getElementById("co-country").value.trim(),
-          },
+          full_name: fullName,
+          email,
+          phone,
+          shipping_address: shippingAddress,
           shipping_option: document.getElementById("co-shipping").value,
           payment_method: document.getElementById("co-method").value,
-          card_number: document.getElementById("co-card").value.trim(),
-          expiry_month: Number(document.getElementById("co-exp-month").value),
-          expiry_year: Number(document.getElementById("co-exp-year").value),
-          cvv: document.getElementById("co-cvv").value.trim(),
         };
+
+        if (payload.payment_method === "stripe_sandbox" && stripe && stripeCardElement) {
+          const pm = await stripe.createPaymentMethod({
+            type: "card",
+            card: stripeCardElement,
+            billing_details: { name: fullName, email },
+          });
+          if (pm.error) {
+            setText("checkout-result", pm.error.message || "Payment validation failed.");
+            return;
+          }
+          payload.payment_token = pm.paymentMethod.id;
+        } else {
+          payload.card_number = document.getElementById("co-card").value.trim();
+          payload.expiry_month = Number(document.getElementById("co-exp-month").value);
+          payload.expiry_year = Number(document.getElementById("co-exp-year").value);
+          payload.cvv = document.getElementById("co-cvv").value.trim();
+
+          if (!isValidCardNumber(payload.card_number)) {
+            setText("checkout-result", "Payment validation error: invalid card number.");
+            return;
+          }
+          if (!payload.expiry_month || !payload.expiry_year) {
+            setText("checkout-result", "Payment validation error: expiry date required.");
+            return;
+          }
+          const now = new Date();
+          if (payload.expiry_year < now.getFullYear() || (payload.expiry_year === now.getFullYear() && payload.expiry_month < now.getMonth() + 1)) {
+            setText("checkout-result", "Payment validation error: card expired.");
+            return;
+          }
+          if (!isValidCvv(payload.cvv)) {
+            setText("checkout-result", "Payment validation error: invalid CVV.");
+            return;
+          }
+        }
+
         const res = await fetch("http://localhost:8000/api/commerce/checkout/place-order/", {
           method: "POST",
           headers: authHeaders(),
@@ -1118,6 +1271,7 @@
 
     runSearch();
     loadCart();
+    initStripeElements();
   </script>
 </body>
 </html>

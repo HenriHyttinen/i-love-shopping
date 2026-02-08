@@ -1,6 +1,7 @@
 from django.db import models, transaction
 from django.db.models import Prefetch
 from django.utils.dateparse import parse_date
+from django.conf import settings
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -170,10 +171,11 @@ class CheckoutPlaceOrderView(APIView):
                     "shipping_address": serializer.validated_data["shipping_address"],
                 },
                 payment_payload={
-                    "card_number": serializer.validated_data["card_number"],
-                    "expiry_month": serializer.validated_data["expiry_month"],
-                    "expiry_year": serializer.validated_data["expiry_year"],
-                    "cvv": serializer.validated_data["cvv"],
+                    "payment_token": serializer.validated_data.get("payment_token", ""),
+                    "card_number": serializer.validated_data.get("card_number", ""),
+                    "expiry_month": serializer.validated_data.get("expiry_month"),
+                    "expiry_year": serializer.validated_data.get("expiry_year"),
+                    "cvv": serializer.validated_data.get("cvv", ""),
                 },
                 shipping_option=serializer.validated_data["shipping_option"],
                 payment_method=serializer.validated_data["payment_method"],
@@ -228,6 +230,13 @@ class OrderListView(APIView):
             queryset = queryset.filter(created_at__date__lte=parsed)
 
         return Response(OrderSerializer(queryset, many=True).data)
+
+
+class PaymentConfigView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        return Response({"stripe_publishable_key": settings.STRIPE_PUBLISHABLE_KEY or ""})
 
 
 class OrderDetailView(APIView):

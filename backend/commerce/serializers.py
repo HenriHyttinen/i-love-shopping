@@ -27,10 +27,11 @@ class CheckoutSerializer(serializers.Serializer):
     shipping_address = serializers.DictField(required=True)
     shipping_option = serializers.ChoiceField(choices=[Order.SHIPPING_STANDARD, Order.SHIPPING_EXPRESS])
     payment_method = serializers.ChoiceField(choices=["stripe_sandbox", "paypal_sandbox"])
-    card_number = serializers.CharField(required=True)
-    expiry_month = serializers.IntegerField(min_value=1, max_value=12, required=True)
-    expiry_year = serializers.IntegerField(min_value=2000, required=True)
-    cvv = serializers.CharField(min_length=3, max_length=4, required=True)
+    payment_token = serializers.CharField(required=False, allow_blank=True)
+    card_number = serializers.CharField(required=False, allow_blank=True)
+    expiry_month = serializers.IntegerField(min_value=1, max_value=12, required=False)
+    expiry_year = serializers.IntegerField(min_value=2000, required=False)
+    cvv = serializers.CharField(min_length=3, max_length=4, required=False, allow_blank=True)
 
     def validate_phone(self, value):
         if not PHONE_RE.match(value):
@@ -62,6 +63,21 @@ class CheckoutSerializer(serializers.Serializer):
         if not POSTAL_RE.match(postal_code):
             raise serializers.ValidationError("Invalid address format for postal_code.")
         return value
+
+    def validate(self, attrs):
+        token = (attrs.get("payment_token") or "").strip()
+        if token:
+            return attrs
+
+        missing_fields = []
+        for key in ("card_number", "expiry_month", "expiry_year", "cvv"):
+            if not attrs.get(key):
+                missing_fields.append(key)
+        if missing_fields:
+            raise serializers.ValidationError(
+                {"payment": f"Missing required payment fields: {', '.join(missing_fields)}"}
+            )
+        return attrs
 
 
 class OrderSerializer(serializers.ModelSerializer):

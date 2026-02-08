@@ -157,6 +157,38 @@ class CommerceTests(TestCase):
         self.assertEqual(checkout.data["payment"]["status"], "failure")
         self.assertEqual(checkout.data["payment"]["failure_code"], "insufficient_funds")
 
+    def test_checkout_tokenized_payment_flow(self):
+        add = self.client.post(
+            "/api/commerce/cart/items/",
+            {"product_id": self.product.id, "quantity": 1},
+            format="json",
+        )
+        token = add.data["guest_cart_token"]
+
+        payload = {
+            "full_name": "Guest Buyer",
+            "email": "guest@example.com",
+            "phone": "+358401234567",
+            "shipping_address": {
+                "line1": "Main street 1",
+                "city": "Helsinki",
+                "state": "Uusimaa",
+                "postal_code": "00100",
+                "country": "FI",
+            },
+            "shipping_option": "standard",
+            "payment_method": "stripe_sandbox",
+            "payment_token": "pm_test_token_123",
+        }
+        checkout = self.client.post(
+            "/api/commerce/checkout/place-order/",
+            payload,
+            format="json",
+            HTTP_X_GUEST_CART_TOKEN=token,
+        )
+        self.assertEqual(checkout.status_code, 201)
+        self.assertEqual(checkout.data["payment"]["status"], "success")
+
     def test_checkout_prefill_for_logged_user(self):
         user = User.objects.create_user(
             email="buyer@example.com",
