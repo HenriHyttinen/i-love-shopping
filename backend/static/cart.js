@@ -7,7 +7,13 @@
         <td>#${item.id}</td>
         <td>${U.esc(item.name)}</td>
         <td>${U.fmtMoney(item.price)}</td>
-        <td><input data-qty-input="${item.id}" type="number" min="0" value="${item.quantity}" style="width:90px;"></td>
+        <td>
+          <div class="btn-row" style="gap:6px;">
+            <button class="secondary" data-dec="${item.id}">-</button>
+            <input data-qty-input="${item.id}" type="number" min="0" value="${item.quantity}" style="width:70px;">
+            <button class="secondary" data-inc="${item.id}">+</button>
+          </div>
+        </td>
         <td>${U.fmtMoney(item.line_total)}</td>
         <td>
           <div class="btn-row">
@@ -44,6 +50,25 @@
   }
 
   function bindActions() {
+    document.querySelectorAll("button[data-dec]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = Number(btn.getAttribute("data-dec"));
+        const input = document.querySelector(`input[data-qty-input="${id}"]`);
+        if (!input) return;
+        const next = Math.max(0, Number(input.value || 0) - 1);
+        input.value = next;
+      });
+    });
+
+    document.querySelectorAll("button[data-inc]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = Number(btn.getAttribute("data-inc"));
+        const input = document.querySelector(`input[data-qty-input="${id}"]`);
+        if (!input) return;
+        input.value = Number(input.value || 0) + 1;
+      });
+    });
+
     document.querySelectorAll("button[data-edit]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const id = Number(btn.getAttribute("data-edit"));
