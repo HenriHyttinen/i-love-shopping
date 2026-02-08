@@ -1,5 +1,7 @@
 (function () {
   const U = window.ShopUI;
+  let recaptchaSiteKey = "";
+  let recaptchaWidgetId = null;
 
   function buildSearchParams() {
     const params = new URLSearchParams();
@@ -46,8 +48,9 @@
             <div class="muted">${U.esc(p.brand.name)} • ${U.esc(p.category.name)}</div>
             <div style="margin:8px 0"><span class="badge">Stock ${p.stock_quantity}</span></div>
             <div style="font-weight:700; margin-bottom:8px">${U.fmtMoney(p.price)}</div>
-            <div class="btn-row">
-              <button data-add="${p.id}">Add to Cart</button>
+            <div class="grid" style="grid-template-columns: 1fr 120px;">
+              <input type="number" min="1" value="1" data-qty="${p.id}">
+              <button data-add="${p.id}">Add</button>
             </div>
           </article>
         `;
@@ -58,9 +61,11 @@
       btn.addEventListener("click", async () => {
         try {
           const productId = Number(btn.getAttribute("data-add"));
+          const qtyInput = root.querySelector(`input[data-qty="${productId}"]`);
+          const quantity = qtyInput ? Number(qtyInput.value || 1) : 1;
           await U.request(U.API + "/commerce/cart/items/", {
             method: "POST",
-            body: { product_id: productId, quantity: 1 },
+            body: { product_id: productId, quantity: quantity },
           });
           U.setStatus("catalog-status", "Added to cart.", "ok");
           loadCartBadge();
@@ -88,7 +93,14 @@
       const email = U.byId("reg-email").value.trim();
       const password = U.byId("reg-password").value;
       const fullName = U.byId("reg-name").value.trim();
-      const recaptcha = U.byId("reg-captcha").value.trim();
+      const recaptcha =
+        window.grecaptcha && recaptchaWidgetId !== null
+          ? window.grecaptcha.getResponse(recaptchaWidgetId)
+          : "";
+      if (recaptchaSiteKey && !recaptcha) {
+        U.setStatus("auth-status", "Please complete the reCAPTCHA.", "warn");
+        return;
+      }
       await U.request(U.API + "/auth/register/", {
         method: "POST",
         guest: false,
@@ -99,6 +111,9 @@
           recaptcha_token: recaptcha || "ok",
         },
       });
+      if (window.grecaptcha && recaptchaWidgetId !== null) {
+        window.grecaptcha.reset(recaptchaWidgetId);
+      }
       U.setStatus("auth-status", "Registered successfully.", "ok");
     } catch (err) {
       U.setStatus("auth-status", JSON.stringify(err), "error");
@@ -127,4 +142,25 @@
 
   runSearch();
   loadCartBadge();
+  loadRecaptchaSiteKey();
 })();
+  async function loadRecaptchaSiteKey() {
+    try {
+      const data = await U.request(U.API + "/auth/recaptcha-site-key/", { guest: false });
+      recaptchaSiteKey = data.site_key || "";
+      tryRenderRecaptcha();
+    } catch (_) {
+      // Keep registration available for dev fallback.
+    }
+  }
+
+  function tryRenderRecaptcha() {
+    if (!recaptchaSiteKey || !window.grecaptcha || recaptchaWidgetId !== null) return;
+    recaptchaWidgetId = window.grecaptcha.render("recaptcha-container", {
+      sitekey: recaptchaSiteKey,
+    });
+  }
+
+  window.onRecaptchaLoaded = function () {
+    tryRenderRecaptcha();
+  };

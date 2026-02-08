@@ -7,7 +7,7 @@
         <td>#${item.id}</td>
         <td>${U.esc(item.name)}</td>
         <td>${U.fmtMoney(item.price)}</td>
-        <td>${item.quantity}</td>
+        <td><input data-qty-input="${item.id}" type="number" min="0" value="${item.quantity}" style="width:90px;"></td>
         <td>${U.fmtMoney(item.line_total)}</td>
         <td>
           <div class="btn-row">
@@ -47,7 +47,8 @@
     document.querySelectorAll("button[data-edit]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const id = Number(btn.getAttribute("data-edit"));
-        const qty = Number(prompt("New quantity (0 removes):", "1"));
+        const input = document.querySelector(`input[data-qty-input="${id}"]`);
+        const qty = input ? Number(input.value) : 0;
         if (Number.isNaN(qty) || qty < 0) return;
         await updateItem(id, qty);
       });
@@ -118,50 +119,10 @@
     }
   }
 
-  async function adjustQuantity(itemId, delta) {
-    try {
-      const cart = await U.request(U.API + "/commerce/cart/");
-      const item = (cart.items || []).find((i) => i.id === itemId);
-      if (!item) {
-        U.setStatus("cart-status", "Item not found in cart.", "warn");
-        return;
-      }
-      const nextQty = Math.max(0, Number(item.quantity) + Number(delta));
-      const data = await U.request(U.API + "/commerce/cart/items/" + itemId + "/", {
-        method: "PATCH",
-        body: { quantity: nextQty },
-      });
-      renderCart(data);
-      U.setStatus("cart-status", "Quantity updated.", "ok");
-    } catch (err) {
-      U.setStatus("cart-status", JSON.stringify(err), "error");
-    }
-  }
-
   U.byId("add-btn").addEventListener("click", () => {
     const productId = Number(U.byId("product-id").value);
     const qty = Number(U.byId("quantity").value || 1);
     addToCart(productId, qty);
-  });
-
-  U.byId("dec-btn").addEventListener("click", () => {
-    const itemId = Number(U.byId("update-item-id").value);
-    const dec = Number(U.byId("decrease-by").value || 1);
-    if (!itemId) {
-      U.setStatus("cart-status", "Provide item id.", "warn");
-      return;
-    }
-    adjustQuantity(itemId, -dec);
-  });
-
-  U.byId("inc-btn").addEventListener("click", () => {
-    const itemId = Number(U.byId("update-item-id").value);
-    const inc = Number(U.byId("increase-by").value || 1);
-    if (!itemId) {
-      U.setStatus("cart-status", "Provide item id.", "warn");
-      return;
-    }
-    adjustQuantity(itemId, inc);
   });
 
   U.byId("refresh-btn").addEventListener("click", loadCart);
