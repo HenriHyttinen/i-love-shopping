@@ -345,6 +345,123 @@
     </section>
 
     <section class="card">
+      <h2>Cart</h2>
+      <label>Product ID</label>
+      <input id="cart-product-id" type="number" placeholder="1">
+      <label>Quantity</label>
+      <input id="cart-qty" type="number" value="1" min="1">
+      <button id="cart-add-btn">Add to Cart</button>
+      <button id="cart-refresh-btn">Refresh Cart</button>
+      <div class="result" id="cart-result"></div>
+      <details>
+        <summary>Cart JSON</summary>
+        <pre id="cart-output">{"items":[]}</pre>
+      </details>
+    </section>
+
+    <section class="card wide">
+      <h2>Checkout (Single Page)</h2>
+      <div class="row">
+        <div>
+          <label>Full name</label>
+          <input id="co-name" type="text" placeholder="Buyer Name">
+        </div>
+        <div>
+          <label>Email</label>
+          <input id="co-email" type="email" placeholder="buyer@example.com">
+        </div>
+        <div>
+          <label>Phone</label>
+          <input id="co-phone" type="text" placeholder="+358401234567">
+        </div>
+        <div>
+          <label>Address line 1</label>
+          <input id="co-line1" type="text" placeholder="Main street 1">
+        </div>
+        <div>
+          <label>City</label>
+          <input id="co-city" type="text" placeholder="Helsinki">
+        </div>
+        <div>
+          <label>State</label>
+          <input id="co-state" type="text" placeholder="Uusimaa">
+        </div>
+        <div>
+          <label>Postal code</label>
+          <input id="co-postal" type="text" placeholder="00100">
+        </div>
+        <div>
+          <label>Country</label>
+          <input id="co-country" type="text" placeholder="FI">
+        </div>
+        <div>
+          <label>Shipping option</label>
+          <select id="co-shipping">
+            <option value="standard">standard</option>
+            <option value="express">express</option>
+          </select>
+        </div>
+        <div>
+          <label>Payment method</label>
+          <select id="co-method">
+            <option value="stripe_sandbox">stripe_sandbox</option>
+            <option value="paypal_sandbox">paypal_sandbox</option>
+          </select>
+        </div>
+        <div>
+          <label>Card number</label>
+          <input id="co-card" type="text" placeholder="4242424242424242">
+        </div>
+        <div>
+          <label>Expiry month</label>
+          <input id="co-exp-month" type="number" placeholder="12">
+        </div>
+        <div>
+          <label>Expiry year</label>
+          <input id="co-exp-year" type="number" placeholder="2028">
+        </div>
+        <div>
+          <label>CVV</label>
+          <input id="co-cvv" type="text" placeholder="123">
+        </div>
+      </div>
+      <button id="checkout-prefill-btn">Prefill (Logged User)</button>
+      <button id="checkout-summary-btn">Order Summary</button>
+      <button id="checkout-btn">Place Order</button>
+      <div class="result" id="checkout-result"></div>
+      <details>
+        <summary>Checkout JSON</summary>
+        <pre id="checkout-output">{"order":null}</pre>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2>Orders</h2>
+      <label>Status filter</label>
+      <select id="order-status-filter">
+        <option value="">all</option>
+        <option value="pending_payment">pending_payment</option>
+        <option value="payment_successful">payment_successful</option>
+        <option value="payment_failed">payment_failed</option>
+        <option value="cancelled">cancelled</option>
+      </select>
+      <label>Date from (YYYY-MM-DD)</label>
+      <input id="order-date-from" type="text" placeholder="2026-01-01">
+      <label>Date to (YYYY-MM-DD)</label>
+      <input id="order-date-to" type="text" placeholder="2026-12-31">
+      <button id="orders-list-btn">List My Orders</button>
+      <label>Order ID</label>
+      <input id="order-id" type="number" placeholder="1">
+      <button id="order-detail-btn">Order Details</button>
+      <button id="order-cancel-btn">Cancel Order</button>
+      <div class="result" id="orders-result"></div>
+      <details>
+        <summary>Orders JSON</summary>
+        <pre id="orders-output">[]</pre>
+      </details>
+    </section>
+
+    <section class="card">
       <h2>Upload Product Image (Admin)</h2>
       <label>Product ID</label>
       <input id="img-product-id" type="number" placeholder="1">
@@ -824,7 +941,183 @@
       }
     });
 
+    let guestCartToken = "";
+
+    function authHeaders() {
+      const headers = { "Content-Type": "application/json" };
+      if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+      if (guestCartToken) headers["X-Guest-Cart-Token"] = guestCartToken;
+      return headers;
+    }
+
+    async function loadCart() {
+      try {
+        const res = await fetch("http://localhost:8000/api/commerce/cart/", {
+          headers: authHeaders(),
+        });
+        const payload = await res.json();
+        if (!res.ok) throw payload;
+        guestCartToken = payload.guest_cart_token || guestCartToken;
+        document.getElementById("cart-output").textContent = JSON.stringify(payload, null, 2);
+        setText("cart-result", `Items: ${payload.item_count}, subtotal: ${payload.subtotal}`);
+      } catch (err) {
+        setText("cart-result", JSON.stringify(err));
+      }
+    }
+
+    document.getElementById("cart-add-btn").addEventListener("click", async () => {
+      try {
+        const productId = Number(document.getElementById("cart-product-id").value);
+        const quantity = Number(document.getElementById("cart-qty").value || 1);
+        const res = await fetch("http://localhost:8000/api/commerce/cart/items/", {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({ product_id: productId, quantity }),
+        });
+        const payload = await res.json();
+        if (!res.ok) throw payload;
+        guestCartToken = payload.guest_cart_token || guestCartToken;
+        document.getElementById("cart-output").textContent = JSON.stringify(payload, null, 2);
+        setText("cart-result", "Added to cart.");
+      } catch (err) {
+        setText("cart-result", JSON.stringify(err));
+      }
+    });
+
+    document.getElementById("cart-refresh-btn").addEventListener("click", async () => {
+      loadCart();
+    });
+
+    document.getElementById("checkout-prefill-btn").addEventListener("click", async () => {
+      try {
+        const res = await fetch("http://localhost:8000/api/commerce/checkout/prefill/", {
+          headers: authHeaders(),
+        });
+        const payload = await res.json();
+        if (!res.ok) throw payload;
+        document.getElementById("co-name").value = payload.full_name || "";
+        document.getElementById("co-email").value = payload.email || "";
+        setText("checkout-result", "Prefill loaded.");
+      } catch (err) {
+        setText("checkout-result", JSON.stringify(err));
+      }
+    });
+
+    document.getElementById("checkout-summary-btn").addEventListener("click", async () => {
+      try {
+        const res = await fetch("http://localhost:8000/api/commerce/checkout/summary/", {
+          headers: authHeaders(),
+        });
+        const payload = await res.json();
+        if (!res.ok) throw payload;
+        document.getElementById("checkout-output").textContent = JSON.stringify(payload, null, 2);
+        setText("checkout-result", "Summary loaded.");
+      } catch (err) {
+        setText("checkout-result", JSON.stringify(err));
+      }
+    });
+
+    document.getElementById("checkout-btn").addEventListener("click", async () => {
+      try {
+        const payload = {
+          full_name: document.getElementById("co-name").value.trim(),
+          email: document.getElementById("co-email").value.trim(),
+          phone: document.getElementById("co-phone").value.trim(),
+          shipping_address: {
+            line1: document.getElementById("co-line1").value.trim(),
+            city: document.getElementById("co-city").value.trim(),
+            state: document.getElementById("co-state").value.trim(),
+            postal_code: document.getElementById("co-postal").value.trim(),
+            country: document.getElementById("co-country").value.trim(),
+          },
+          shipping_option: document.getElementById("co-shipping").value,
+          payment_method: document.getElementById("co-method").value,
+          card_number: document.getElementById("co-card").value.trim(),
+          expiry_month: Number(document.getElementById("co-exp-month").value),
+          expiry_year: Number(document.getElementById("co-exp-year").value),
+          cvv: document.getElementById("co-cvv").value.trim(),
+        };
+        const res = await fetch("http://localhost:8000/api/commerce/checkout/place-order/", {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify(payload),
+        });
+        const body = await res.json();
+        if (!res.ok) throw body;
+        document.getElementById("checkout-output").textContent = JSON.stringify(body, null, 2);
+        setText("checkout-result", `Checkout done: ${body.order.status}`);
+        loadCart();
+      } catch (err) {
+        setText("checkout-result", JSON.stringify(err));
+      }
+    });
+
+    document.getElementById("orders-list-btn").addEventListener("click", async () => {
+      if (!accessToken) {
+        setText("orders-result", "Login first.");
+        return;
+      }
+      try {
+        const params = new URLSearchParams();
+        const statusFilter = document.getElementById("order-status-filter").value;
+        const dateFrom = document.getElementById("order-date-from").value.trim();
+        const dateTo = document.getElementById("order-date-to").value.trim();
+        if (statusFilter) params.append("status", statusFilter);
+        if (dateFrom) params.append("date_from", dateFrom);
+        if (dateTo) params.append("date_to", dateTo);
+        const res = await fetch(`http://localhost:8000/api/commerce/orders/?${params.toString()}`, {
+          headers: authHeaders(),
+        });
+        const payload = await res.json();
+        if (!res.ok) throw payload;
+        document.getElementById("orders-output").textContent = JSON.stringify(payload, null, 2);
+        setText("orders-result", `${payload.length} orders`);
+      } catch (err) {
+        setText("orders-result", JSON.stringify(err));
+      }
+    });
+
+    document.getElementById("order-detail-btn").addEventListener("click", async () => {
+      if (!accessToken) {
+        setText("orders-result", "Login first.");
+        return;
+      }
+      try {
+        const orderId = Number(document.getElementById("order-id").value);
+        const res = await fetch(`http://localhost:8000/api/commerce/orders/${orderId}/`, {
+          headers: authHeaders(),
+        });
+        const payload = await res.json();
+        if (!res.ok) throw payload;
+        document.getElementById("orders-output").textContent = JSON.stringify(payload, null, 2);
+        setText("orders-result", `Order ${orderId} loaded.`);
+      } catch (err) {
+        setText("orders-result", JSON.stringify(err));
+      }
+    });
+
+    document.getElementById("order-cancel-btn").addEventListener("click", async () => {
+      if (!accessToken) {
+        setText("orders-result", "Login first.");
+        return;
+      }
+      try {
+        const orderId = Number(document.getElementById("order-id").value);
+        const res = await fetch(`http://localhost:8000/api/commerce/orders/${orderId}/cancel/`, {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({}),
+        });
+        const payload = await res.json();
+        if (!res.ok) throw payload;
+        setText("orders-result", payload.detail || "Order cancelled.");
+      } catch (err) {
+        setText("orders-result", JSON.stringify(err));
+      }
+    });
+
     runSearch();
+    loadCart();
   </script>
 </body>
 </html>

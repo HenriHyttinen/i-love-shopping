@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "dj_rest_auth.registration",
     "users",
     "catalog",
+    "commerce",
 ]
 
 SITE_ID = 1
@@ -169,6 +170,7 @@ GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "")
 
 RECAPTCHA_SECRET_KEY = os.getenv("RECAPTCHA_SECRET_KEY", "")
 RECAPTCHA_SITE_KEY = os.getenv("RECAPTCHA_SITE_KEY", "")
+COMMERCE_ENCRYPTION_KEY = os.getenv("COMMERCE_ENCRYPTION_KEY", "")
 
 SOCIALACCOUNT_PROVIDERS = {
     "google": {

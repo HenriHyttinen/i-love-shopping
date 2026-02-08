@@ -14,6 +14,7 @@ urlpatterns = [
     path("api/auth/reset/<uid>/<token>/", password_reset_confirm_page, name="password_reset_confirm"),
     path("api/auth/", include("users.urls")),
     path("api/catalog/", include("catalog.urls")),
+    path("api/commerce/", include("commerce.urls")),
     path("api/auth/", include("dj_rest_auth.urls")),
     path("api/auth/registration/", include("dj_rest_auth.registration.urls")),
     path("api/auth/", include("django.contrib.auth.urls")),

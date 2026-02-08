@@ -1,7 +1,8 @@
-# i-love-shopping (Part 1)
+# i-love-shopping (Part 2)
 
 ## Overview
-Hardware-focused B2C e-commerce foundation. This project covers user accounts and authentication (email + Google OAuth, JWT with refresh rotation, optional 2FA), a searchable product catalog with filters and sorting, and a Dockerized setup.
+Hardware-focused B2C e-commerce platform with Foundation + Commerce layers.  
+This version includes secure accounts and authentication (email + Google OAuth, JWT with refresh rotation, optional 2FA), searchable catalog, guest and persistent carts, single-page checkout, payment sandbox simulation, order management, and Dockerized setup.
 
 ## ERD
 ERD image: `docs/erd.svg`
@@ -61,6 +62,64 @@ Crowfoot notation is used for cardinality/modality:
 - `||` = exactly one (mandatory)
 - `o{` = zero or many (optional many)
 
+Commerce extension:
+
+```mermaid
+erDiagram
+    CART {
+        int id PK
+        int user_id FK
+        string guest_token
+    }
+    CART_ITEM {
+        int id PK
+        int cart_id FK
+        int product_id FK
+        int quantity
+        decimal unit_price
+    }
+    ORDER {
+        int id PK
+        int user_id FK
+        string status
+        string payment_method
+        decimal subtotal
+        decimal shipping_cost
+        decimal total
+        text encrypted_shipping_address
+    }
+    ORDER_ITEM {
+        int id PK
+        int order_id FK
+        int product_id FK
+        int quantity
+        decimal unit_price
+    }
+    PAYMENT_TRANSACTION {
+        int id PK
+        int order_id FK
+        string provider
+        string status
+        string failure_code
+        text encrypted_provider_payload
+    }
+    PAYMENT_STATUS_MESSAGE {
+        int id PK
+        int order_id FK
+        int transaction_id FK
+        string status
+        datetime consumed_at
+    }
+
+    CART ||--o{ CART_ITEM : has
+    PRODUCT ||--o{ CART_ITEM : in
+    ORDER ||--o{ ORDER_ITEM : has
+    PRODUCT ||--o{ ORDER_ITEM : purchased_as
+    ORDER ||--|| PAYMENT_TRANSACTION : has
+    ORDER ||--o{ PAYMENT_STATUS_MESSAGE : emits
+    PAYMENT_TRANSACTION ||--o{ PAYMENT_STATUS_MESSAGE : publishes
+```
+
 ## Architecture & Scalability
 - Architectural style: modular monolith (Django + REST). The `users` and `catalog` apps are cleanly separated and can be split into services if needed.
 - Scaling path: stateless API with JWT allows horizontal scaling behind a load balancer; Postgres can scale with read replicas and connection pooling.
@@ -98,6 +157,7 @@ This project uses short-lived access tokens + rotated refresh tokens with blackl
 Automated tests cover:
 - Auth: registration, login, 2FA, refresh rotation, token revocation, logout flows.
 - Catalog: filtering, ordering, suggestions, image upload permissions.
+- Commerce: cart item/total behavior, guest checkout and payment outcomes, prefill flow, order filtering, cancellation/inventory restore.
 - Security: invalid filters, injection-like input, invalid ordering.
 
 Manual checks (recommended for demo):
@@ -105,9 +165,9 @@ Manual checks (recommended for demo):
 - OAuth: Google login with access token exchange.
 - 2FA: setup → verify → login with 2FA enabled → disable.
 
-Latest test runs:
-- Local (venv + SQLite in-memory): `DB_ENGINE=django.db.backends.sqlite3 DB_NAME=:memory: RECAPTCHA_SECRET_KEY= python manage.py test` → 34 tests OK.
-- Docker (Postgres): `docker-compose exec -T backend env RECAPTCHA_SECRET_KEY= python manage.py test` → 34 tests OK.
+Latest verification in this repo revision:
+- Python static compile check passed for updated backend modules and tests.
+- Full Django test execution requires dependencies installed (`pip install -r backend/requirements.txt`) and DB migration applied.
 
 ## Setup for OAuth (Google)
 1) Go to Google Cloud Console → APIs & Services → Credentials.
@@ -166,6 +226,8 @@ cp backend/envtemplate.txt backend/.env
 2) Fill in Google OAuth + reCAPTCHA secrets in `backend/.env`.
    - Google OAuth redirect URIs: `http://localhost:8000` and `http://localhost:8000/api/auth/oauth/google/`
    - Allowed JS origins: `http://localhost:8000`
+   - Set `COMMERCE_ENCRYPTION_KEY` for encrypted order/payment data at rest (Fernet key).  
+     If omitted, a fallback key is derived from `SECRET_KEY` for development.
 3) Start everything
 ```
 docker-compose up --build
@@ -265,6 +327,41 @@ curl -X POST http://localhost:8000/api/catalog/products/1/images/ \
 When `DEBUG=1`, images are served under `http://localhost:8000/media/...`.
 `backend/media` is gitignored and not part of the repo.
 Upload rules: PNG/JPEG only, max 2MB, max 5 images per product, oversized images are resized.
+
+### Commerce
+- Cart:
+  - `GET /commerce/cart/`
+  - `POST /commerce/cart/items/`
+  - `PATCH /commerce/cart/items/{item_id}/`
+  - `DELETE /commerce/cart/items/{item_id}/`
+- Guest carts use `X-Guest-Cart-Token`; logged-in users get persistent per-user carts.
+- Checkout:
+  - `GET /commerce/checkout/prefill/` (prefills known user info)
+  - `GET /commerce/checkout/summary/`
+  - `POST /commerce/checkout/place-order/`
+- Order management:
+  - `GET /commerce/orders/?status=&date_from=&date_to=`
+  - `GET /commerce/orders/{order_id}/`
+  - `POST /commerce/orders/{order_id}/cancel/`
+
+Payment simulation behavior:
+- Providers: `stripe_sandbox`, `paypal_sandbox`
+- Example success card: `4242424242424242`
+- Failure scenarios:
+  - `4000000000009995` → insufficient funds
+  - `4000000000000002` → invalid card number
+  - `4000000000000069` → expired card
+  - `4000000000000127` → gateway timeout
+
+Message queue flow:
+- Payment events are published to `PaymentStatusMessage` queue table.
+- Order state is updated by queue consumer logic (`pending_payment` → `payment_successful` / `payment_failed`).
+- Failure or cancellation restores inventory to prevent stock drift.
+
+Security and data handling:
+- Raw card data is never persisted.
+- Stored order/payment payloads (shipping address, payment metadata) are encrypted at rest.
+- Checkout stock updates use transactional row locking to prevent overselling on concurrent payments.
 
 ## Notes for Review
 - JWT access tokens are intended for in-memory storage on the client.
