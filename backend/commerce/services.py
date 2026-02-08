@@ -48,7 +48,7 @@ def get_or_create_cart(user=None, guest_token: str = "") -> Cart:
 def cart_totals(cart: Cart) -> dict:
     subtotal = Decimal("0.00")
     items = []
-    for item in cart.items.select_related("product", "product__brand", "product__category", "product__images"):
+    for item in cart.items.select_related("product", "product__brand", "product__category").prefetch_related("product__images"):
         line_total = item.unit_price * item.quantity
         subtotal += line_total
         first_image = item.product.images.first()
