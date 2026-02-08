@@ -284,6 +284,17 @@ python manage.py cleanup_access_tokens
   - `http://localhost:8000/checkout/`
   - `http://localhost:8000/orders/`
 
+Frontend structure:
+- `index.html` is now a clean home dashboard with auth quick-actions and catalog browser.
+- `cart.html`, `checkout.html`, and `orders.html` are dedicated flow pages for easier review/demo.
+- Shared UI layer lives in:
+  - `backend/static/ui.css`
+  - `backend/static/ui.js`
+  - `backend/static/home.js`
+  - `backend/static/cart.js`
+  - `backend/static/checkout.js`
+  - `backend/static/orders.js`
+
 ### Auth
 - Register (with CAPTCHA token): `POST /auth/register/`
 - Login (2FA code optional): `POST /auth/login/`

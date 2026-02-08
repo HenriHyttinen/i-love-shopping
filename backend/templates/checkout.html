@@ -1,139 +1,86 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Checkout | Hardware Shop</title>
-  <style>
-    body { margin:0; font-family:"IBM Plex Sans", sans-serif; background:#0b111b; color:#eef1f6; }
-    header { padding:16px 20px; background:#101a2b; border-bottom:1px solid #25344a; }
-    a { color:#7fc0ff; text-decoration:none; margin-right:14px; }
-    main { max-width:1000px; margin:20px auto; padding:0 16px; }
-    .card { background:#141c2b; border:1px solid #2a3a52; padding:16px; margin-bottom:14px; }
-    .grid { display:grid; gap:8px; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); }
-    label { display:block; margin:8px 0 4px; }
-    input, select, button { width:100%; box-sizing:border-box; padding:10px; margin-bottom:8px; background:#0c1423; color:#eef1f6; border:1px solid #2a3a52; }
-    button { cursor:pointer; background:#2f6fb8; }
-    pre { background:#0b111b; padding:10px; overflow:auto; }
-    .result { color:#9aa6b6; min-height:18px; }
-  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'ui.css' %}">
+  <script src="https://js.stripe.com/v3/" async defer></script>
 </head>
 <body>
-  <header>
-    <strong>Hardware Shop Demo</strong>
-    <div style="margin-top:8px">
-      <a href="/">Home</a><a href="/cart/">Cart</a><a href="/checkout/">Checkout</a><a href="/orders/">Orders</a>
+<header>
+  <div class="nav-wrap">
+    <div>
+      <div class="brand">Hardware Shop</div>
+      <div class="footer-note">Checkout Flow</div>
     </div>
-  </header>
-  <main>
-    <section class="card">
-      <h2>Auth (for prefill)</h2>
-      <label>Email</label><input id="email" type="email" placeholder="user@example.com">
-      <label>Password</label><input id="password" type="password" placeholder="StrongPass123!">
-      <button id="login-btn">Login</button>
-      <div class="result" id="auth-result"></div>
-    </section>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/cart/">Cart</a>
+      <a class="active" href="/checkout/">Checkout</a>
+      <a href="/orders/">Orders</a>
+    </nav>
+  </div>
+</header>
 
-    <section class="card">
-      <h2>Checkout</h2>
-      <div class="grid">
-        <div><label>Full name</label><input id="full_name" type="text"></div>
-        <div><label>Email</label><input id="co_email" type="email"></div>
-        <div><label>Phone</label><input id="phone" type="text"></div>
-        <div><label>Line1</label><input id="line1" type="text"></div>
-        <div><label>City</label><input id="city" type="text"></div>
-        <div><label>State</label><input id="state" type="text"></div>
-        <div><label>Postal</label><input id="postal" type="text"></div>
-        <div><label>Country</label><input id="country" type="text"></div>
-        <div><label>Shipping</label><select id="shipping"><option value="standard">standard</option><option value="express">express</option></select></div>
-        <div><label>Method</label><select id="method"><option value="stripe_sandbox">stripe_sandbox</option><option value="paypal_sandbox">paypal_sandbox</option></select></div>
-        <div><label>Card</label><input id="card" type="text" placeholder="4242424242424242"></div>
-        <div><label>Expiry month</label><input id="exp_m" type="number" value="12"></div>
-        <div><label>Expiry year</label><input id="exp_y" type="number" value="2028"></div>
-        <div><label>CVV</label><input id="cvv" type="text" value="123"></div>
+<main>
+  <section class="panel">
+    <h1>Checkout</h1>
+    <p class="muted">Login is optional. Logged users can prefill name/email.</p>
+    <div class="cols-2">
+      <div>
+        <label>Login Email</label><input id="auth-email" type="email" placeholder="user@example.com">
+        <label>Password</label><input id="auth-password" type="password" placeholder="StrongPass123!">
+        <button id="auth-login-btn">Login</button>
       </div>
-      <button id="prefill-btn">Prefill</button>
-      <button id="summary-btn">Order Summary</button>
-      <button id="checkout-btn">Place Order</button>
-      <div class="result" id="result"></div>
-      <pre id="output">{"order":null}</pre>
-    </section>
-  </main>
-  <script>
-    const API = "http://localhost:8000/api";
-    const TOKEN_KEY = "guest_cart_token";
-    let accessToken = "";
+      <div>
+        <label>Full Name</label><input id="full_name" type="text" placeholder="Buyer Name">
+        <label>Email</label><input id="email" type="email" placeholder="buyer@example.com">
+        <label>Phone</label><input id="phone" type="text" placeholder="+358401234567">
+      </div>
+    </div>
+  </section>
 
-    function guestToken() { return localStorage.getItem(TOKEN_KEY) || ""; }
-    function headers() {
-      const h = {"Content-Type":"application/json"};
-      const gt = guestToken();
-      if (gt) h["X-Guest-Cart-Token"] = gt;
-      if (accessToken) h["Authorization"] = `Bearer ${accessToken}`;
-      return h;
-    }
-    function setText(id, t) { document.getElementById(id).textContent = t; }
+  <section class="panel">
+    <h2>Shipping and Payment</h2>
+    <div class="grid">
+      <div><label>Address line 1</label><input id="line1" type="text"></div>
+      <div><label>City</label><input id="city" type="text"></div>
+      <div><label>State</label><input id="state" type="text"></div>
+      <div><label>Postal code</label><input id="postal_code" type="text"></div>
+      <div><label>Country</label><input id="country" type="text"></div>
+      <div><label>Shipping option</label><select id="shipping_option"><option value="standard">standard</option><option value="express">express</option></select></div>
+      <div><label>Payment method</label><select id="payment_method"><option value="stripe_sandbox">stripe_sandbox</option><option value="paypal_sandbox">paypal_sandbox</option></select></div>
+      <div><label>Card number</label><input id="card_number" type="text" placeholder="4242424242424242"></div>
+      <div><label>Expiry month</label><input id="expiry_month" type="number" value="12"></div>
+      <div><label>Expiry year</label><input id="expiry_year" type="number" value="2028"></div>
+      <div><label>CVV</label><input id="cvv" type="text" value="123"></div>
+    </div>
+    <div id="stripe-wrap" class="panel" style="display:none; margin-top:10px; padding:10px;">
+      <label>Stripe Card Element</label>
+      <div id="stripe-card" style="padding:10px; border:1px solid var(--line); border-radius:10px;"></div>
+    </div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button class="secondary" id="prefill-btn">Prefill</button>
+      <button class="secondary" id="summary-btn">Load Summary</button>
+      <button id="place-btn">Place Order</button>
+    </div>
+    <div id="checkout-status" class="status info">Ready.</div>
+  </section>
 
-    document.getElementById("login-btn").onclick = async () => {
-      try {
-        const email = document.getElementById("email").value.trim();
-        const password = document.getElementById("password").value;
-        const res = await fetch(`${API}/auth/login/`, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({email,password}) });
-        const data = await res.json();
-        if (!res.ok) throw data;
-        accessToken = data.access;
-        setText("auth-result", "Logged in.");
-      } catch (e) { setText("auth-result", JSON.stringify(e)); }
-    };
+  <section id="confirm" class="panel"></section>
 
-    document.getElementById("prefill-btn").onclick = async () => {
-      try {
-        const res = await fetch(`${API}/commerce/checkout/prefill/`, { headers: headers() });
-        const data = await res.json(); if (!res.ok) throw data;
-        document.getElementById("full_name").value = data.full_name || "";
-        document.getElementById("co_email").value = data.email || "";
-        setText("result", "Prefill loaded.");
-      } catch (e) { setText("result", JSON.stringify(e)); }
-    };
+  <section class="panel">
+    <h2>Debug</h2>
+    <pre id="checkout-json" class="code">{}</pre>
+  </section>
+</main>
 
-    document.getElementById("summary-btn").onclick = async () => {
-      try {
-        const res = await fetch(`${API}/commerce/checkout/summary/`, { headers: headers() });
-        const data = await res.json(); if (!res.ok) throw data;
-        document.getElementById("output").textContent = JSON.stringify(data, null, 2);
-        setText("result", "Summary loaded.");
-      } catch (e) { setText("result", JSON.stringify(e)); }
-    };
-
-    document.getElementById("checkout-btn").onclick = async () => {
-      try {
-        const payload = {
-          full_name: document.getElementById("full_name").value.trim(),
-          email: document.getElementById("co_email").value.trim(),
-          phone: document.getElementById("phone").value.trim(),
-          shipping_address: {
-            line1: document.getElementById("line1").value.trim(),
-            city: document.getElementById("city").value.trim(),
-            state: document.getElementById("state").value.trim(),
-            postal_code: document.getElementById("postal").value.trim(),
-            country: document.getElementById("country").value.trim(),
-          },
-          shipping_option: document.getElementById("shipping").value,
-          payment_method: document.getElementById("method").value,
-          card_number: document.getElementById("card").value.trim(),
-          expiry_month: Number(document.getElementById("exp_m").value),
-          expiry_year: Number(document.getElementById("exp_y").value),
-          cvv: document.getElementById("cvv").value.trim(),
-        };
-        const res = await fetch(`${API}/commerce/checkout/place-order/`, { method:"POST", headers: headers(), body: JSON.stringify(payload) });
-        const data = await res.json(); if (!res.ok) throw data;
-        document.getElementById("output").textContent = JSON.stringify(data, null, 2);
-        setText("result", `Checkout done: ${data.order.status}`);
-      } catch (e) {
-        if (e instanceof TypeError) setText("result", "Network error.");
-        else setText("result", JSON.stringify(e));
-      }
-    };
-  </script>
+<script src="{% static 'ui.js' %}"></script>
+<script src="{% static 'checkout.js' %}"></script>
 </body>
 </html>
