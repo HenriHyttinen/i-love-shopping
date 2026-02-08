@@ -265,3 +265,58 @@ class CommerceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock_quantity, 2)
+
+    def test_inventory_oversell_prevention(self):
+        self.product.stock_quantity = 1
+        self.product.save(update_fields=["stock_quantity"])
+
+        add_a = self.client.post(
+            "/api/commerce/cart/items/",
+            {"product_id": self.product.id, "quantity": 1},
+            format="json",
+        )
+        guest_a = add_a.data["guest_cart_token"]
+
+        client_b = APIClient()
+        add_b = client_b.post(
+            "/api/commerce/cart/items/",
+            {"product_id": self.product.id, "quantity": 1},
+            format="json",
+        )
+        guest_b = add_b.data["guest_cart_token"]
+
+        payload = {
+            "full_name": "Buyer One",
+            "email": "one@example.com",
+            "phone": "+358401111111",
+            "shipping_address": {
+                "line1": "Street 1",
+                "city": "Helsinki",
+                "state": "Uusimaa",
+                "postal_code": "00100",
+                "country": "FI",
+            },
+            "shipping_option": "standard",
+            "payment_method": "stripe_sandbox",
+            "card_number": "4242424242424242",
+            "expiry_month": 12,
+            "expiry_year": timezone.now().year + 1,
+            "cvv": "123",
+        }
+        ok = self.client.post(
+            "/api/commerce/checkout/place-order/",
+            payload,
+            format="json",
+            HTTP_X_GUEST_CART_TOKEN=guest_a,
+        )
+        self.assertEqual(ok.status_code, 201)
+        self.assertEqual(ok.data["payment"]["status"], "success")
+
+        fail = client_b.post(
+            "/api/commerce/checkout/place-order/",
+            payload | {"email": "two@example.com"},
+            format="json",
+            HTTP_X_GUEST_CART_TOKEN=guest_b,
+        )
+        self.assertEqual(fail.status_code, 400)
+        self.assertIn("Out of stock", fail.data["detail"])

@@ -177,64 +177,70 @@ def publish_payment_message(
 
 
 def consume_payment_messages(order_id: int | None = None):
+    max_attempts = 5
     query = PaymentStatusMessage.objects.select_for_update().filter(consumed_at__isnull=True, dead_lettered=False)
     if order_id:
         query = query.filter(order_id=order_id)
 
     for msg in query.order_by("created_at"):
-        msg.attempts += 1
-        msg.save(update_fields=["attempts"])
+        try:
+            msg.attempts += 1
+            msg.save(update_fields=["attempts"])
 
-        order = msg.order
-        payload = decrypt_json(msg.payload)
+            order = msg.order
+            payload = decrypt_json(msg.payload)
 
-        if msg.status == PaymentStatusMessage.STATUS_PENDING:
-            order.status = Order.STATUS_PENDING_PAYMENT
-            note = "Payment initiated"
-        elif msg.status == PaymentStatusMessage.STATUS_SUCCESS:
-            order.status = Order.STATUS_PAYMENT_SUCCESSFUL
-            note = "Payment successful"
-            if order.user and order.user.email:
-                send_mail(
-                    "Your order payment succeeded",
-                    f"Order #{order.id} has been paid successfully.",
-                    None,
-                    [order.user.email],
-                    fail_silently=True,
-                )
-            elif order.guest_email:
-                send_mail(
-                    "Your order payment succeeded",
-                    f"Order #{order.id} has been paid successfully.",
-                    None,
-                    [order.guest_email],
-                    fail_silently=True,
-                )
-        else:
-            order.status = Order.STATUS_PAYMENT_FAILED
-            note = payload.get("message", "Payment failed")
-            _restore_inventory(order)
-            if order.user and order.user.email:
-                send_mail(
-                    "Your order payment failed",
-                    f"Order #{order.id} payment failed: {note}",
-                    None,
-                    [order.user.email],
-                    fail_silently=True,
-                )
-            elif order.guest_email:
-                send_mail(
-                    "Your order payment failed",
-                    f"Order #{order.id} payment failed: {note}",
-                    None,
-                    [order.guest_email],
-                    fail_silently=True,
-                )
+            if msg.status == PaymentStatusMessage.STATUS_PENDING:
+                order.status = Order.STATUS_PENDING_PAYMENT
+                note = "Payment initiated"
+            elif msg.status == PaymentStatusMessage.STATUS_SUCCESS:
+                order.status = Order.STATUS_PAYMENT_SUCCESSFUL
+                note = "Payment successful"
+                if order.user and order.user.email:
+                    send_mail(
+                        "Your order payment succeeded",
+                        f"Order #{order.id} has been paid successfully.",
+                        None,
+                        [order.user.email],
+                        fail_silently=True,
+                    )
+                elif order.guest_email:
+                    send_mail(
+                        "Your order payment succeeded",
+                        f"Order #{order.id} has been paid successfully.",
+                        None,
+                        [order.guest_email],
+                        fail_silently=True,
+                    )
+            else:
+                order.status = Order.STATUS_PAYMENT_FAILED
+                note = payload.get("message", "Payment failed")
+                _restore_inventory(order)
+                if order.user and order.user.email:
+                    send_mail(
+                        "Your order payment failed",
+                        f"Order #{order.id} payment failed: {note}",
+                        None,
+                        [order.user.email],
+                        fail_silently=True,
+                    )
+                elif order.guest_email:
+                    send_mail(
+                        "Your order payment failed",
+                        f"Order #{order.id} payment failed: {note}",
+                        None,
+                        [order.guest_email],
+                        fail_silently=True,
+                    )
 
-        order.save(update_fields=["status", "updated_at"])
-        OrderStatusEvent.objects.create(order=order, status=order.status, note=note)
-        msg.consumed_at = timezone.now()
-        msg.save(update_fields=["consumed_at"])
+            order.save(update_fields=["status", "updated_at"])
+            OrderStatusEvent.objects.create(order=order, status=order.status, note=note)
+            msg.consumed_at = timezone.now()
+            msg.save(update_fields=["consumed_at"])
+        except Exception:
+            if msg.attempts >= max_attempts:
+                msg.dead_lettered = True
+                msg.save(update_fields=["dead_lettered"])
 
 
 def _restore_inventory(order: Order):
