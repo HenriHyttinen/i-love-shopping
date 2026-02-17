@@ -3,6 +3,21 @@
   let stripe = null;
   let stripeCard = null;
 
+  const SCENARIO_TOKEN_MAP = {
+    success: "tok_success",
+    insufficient_funds: "tok_fail_insufficient_funds",
+    invalid_card_number: "tok_fail_invalid_card",
+    expired_card: "tok_fail_expired_card",
+    gateway_timeout: "tok_fail_gateway_timeout",
+  };
+
+  const CARD_FAILURE_TOKEN_MAP = {
+    "4000000000009995": "tok_fail_insufficient_funds",
+    "4000000000000002": "tok_fail_invalid_card",
+    "4000000000000069": "tok_fail_expired_card",
+    "4000000000000127": "tok_fail_gateway_timeout",
+  };
+
   function payloadFromForm() {
     return {
       full_name: U.byId("full_name").value.trim(),
@@ -17,10 +32,7 @@
       },
       shipping_option: U.byId("shipping_option").value,
       payment_method: U.byId("payment_method").value,
-      card_number: U.byId("card_number").value.trim(),
-      expiry_month: Number(U.byId("expiry_month").value),
-      expiry_year: Number(U.byId("expiry_year").value),
-      cvv: U.byId("cvv").value.trim(),
+      payment_token: U.byId("payment_token_manual").value.trim(),
     };
   }
 
@@ -33,6 +45,45 @@
     if (!emailOk) return "Invalid email format.";
     if (!phoneOk) return "Invalid phone format.";
     if (!postalOk) return "Invalid address format.";
+    if (!payload.payment_method) return "Missing payment method.";
+    return "";
+  }
+
+  function luhnValid(number) {
+    let sum = 0;
+    let alt = false;
+    for (let i = number.length - 1; i >= 0; i -= 1) {
+      let n = Number(number[i]);
+      if (alt) {
+        n *= 2;
+        if (n > 9) n -= 9;
+      }
+      sum += n;
+      alt = !alt;
+    }
+    return sum % 10 === 0;
+  }
+
+  function cardInput() {
+    return {
+      number: U.byId("card_number").value.trim().replace(/\s+/g, ""),
+      month: Number(U.byId("expiry_month").value),
+      year: Number(U.byId("expiry_year").value),
+      cvv: U.byId("cvv").value.trim(),
+    };
+  }
+
+  function validateCardInput(input) {
+    if (!input.number && !input.month && !input.year && !input.cvv) return "";
+    if (!/^\d{12,19}$/.test(input.number)) return "Invalid card number format.";
+    if (!luhnValid(input.number)) return "Invalid card number checksum.";
+    if (!Number.isInteger(input.month) || input.month < 1 || input.month > 12) return "Invalid expiry month.";
+    if (!Number.isInteger(input.year) || input.year < 2000 || input.year > 2100) return "Invalid expiry year.";
+    const now = new Date();
+    const currentMonth = now.getUTCMonth() + 1;
+    const currentYear = now.getUTCFullYear();
+    if (input.year < currentYear || (input.year === currentYear && input.month < currentMonth)) return "Card has expired.";
+    if (!/^\d{3,4}$/.test(input.cvv)) return "Invalid CVV format.";
     return "";
   }
 
@@ -106,10 +157,26 @@
       const elements = stripe.elements();
       stripeCard = elements.create("card", { hidePostalCode: true });
       stripeCard.mount("#stripe-card");
-      U.byId("stripe-wrap").style.display = "block";
+      stripeCard.on("change", (event) => {
+        if (event.error) {
+          U.setStatus("checkout-status", event.error.message || "Payment validation failed.", "warn");
+        }
+      });
+      updatePaymentUI();
     } catch (_) {
       // Optional feature.
     }
+  }
+
+  function scenarioToken() {
+    const selected = U.byId("payment_scenario").value;
+    return SCENARIO_TOKEN_MAP[selected] || SCENARIO_TOKEN_MAP.success;
+  }
+
+  function updatePaymentUI() {
+    const method = U.byId("payment_method").value;
+    const stripeVisible = method === "stripe_sandbox" && !!stripeCard;
+    U.byId("stripe-wrap").style.display = stripeVisible ? "block" : "none";
   }
 
   async function placeOrder() {
@@ -121,7 +188,7 @@
         return;
       }
 
-      if (stripe && stripeCard && payload.payment_method === "stripe_sandbox") {
+      if (payload.payment_method === "stripe_sandbox" && stripe && stripeCard) {
         const pm = await stripe.createPaymentMethod({
           type: "card",
           card: stripeCard,
@@ -131,11 +198,34 @@
           U.setStatus("checkout-status", pm.error.message || "Payment validation failed.", "error");
           return;
         }
-        delete payload.card_number;
-        delete payload.expiry_month;
-        delete payload.expiry_year;
-        delete payload.cvv;
         payload.payment_token = pm.paymentMethod.id;
+      } else if (!payload.payment_token) {
+        const card = cardInput();
+        const cardIssue = validateCardInput(card);
+        if (cardIssue) {
+          U.setStatus("checkout-status", cardIssue, "warn");
+          return;
+        }
+        if (card.number) {
+          payload.payment_token = CARD_FAILURE_TOKEN_MAP[card.number] || "tok_success";
+        } else {
+          payload.payment_token = scenarioToken();
+        }
+      }
+
+      if (!payload.payment_token || payload.payment_token.length < 8) {
+        U.setStatus("checkout-status", "Payment validation failed.", "error");
+        return;
+      }
+
+      if (payload.payment_method === "paypal_sandbox" && !payload.payment_token.startsWith("tok_")) {
+        U.setStatus("checkout-status", "PayPal sandbox requires a tok_* payment token.", "warn");
+        return;
+      }
+
+      if (payload.payment_method === "stripe_sandbox" && !stripeCard && !payload.payment_token.startsWith("tok_")) {
+        U.setStatus("checkout-status", "Stripe secure form unavailable. Use sandbox tok_* token or configure STRIPE_PUBLISHABLE_KEY.", "warn");
+        return;
       }
 
       const data = await U.request(U.API + "/commerce/checkout/place-order/", {
@@ -143,13 +233,23 @@
         auth: true,
         body: payload,
       });
+      const notification = data.notification || {};
+      const notifyState = notification.status || "queued";
+      const notifyRecipient = notification.recipient ? ` to ${U.esc(notification.recipient)}` : "";
+      const notifyDetail = notification.detail ? U.esc(notification.detail) : "Notification status pending.";
+      const notifyClass = notifyState === "sent" ? "ok" : (notifyState === "failed" ? "error" : "info");
       U.byId("checkout-json").textContent = JSON.stringify(data, null, 2);
       U.byId("confirm").innerHTML = `
         <h3>Order Confirmation</h3>
         <div class="status ok">Order #${data.order.id} is ${data.order.status}. Payment ${data.payment.status}.</div>
+        <div class="status ${notifyClass}">Notification: ${U.esc(notifyState)}${notifyRecipient}. ${notifyDetail}</div>
         <p class="footer-note">Tracking: ${U.esc(data.order.tracking_code || "")}</p>
       `;
-      U.setStatus("checkout-status", "Checkout completed.", "ok");
+      if (notifyState === "failed") {
+        U.setStatus("checkout-status", "Checkout completed, but email notification failed.", "warn");
+      } else {
+        U.setStatus("checkout-status", "Checkout completed.", "ok");
+      }
     } catch (err) {
       U.setStatus("checkout-status", JSON.stringify(err), "error");
     }
@@ -160,7 +260,9 @@
   U.byId("prefill-btn").addEventListener("click", prefill);
   U.byId("summary-btn").addEventListener("click", summary);
   U.byId("place-btn").addEventListener("click", placeOrder);
+  U.byId("payment_method").addEventListener("change", updatePaymentUI);
 
   summary();
+  updatePaymentUI();
   initStripe();
 })();

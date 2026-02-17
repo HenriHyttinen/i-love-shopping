@@ -10,6 +10,8 @@ from .views import (
     OrderCancelView,
     OrderDetailView,
     OrderListView,
+    OrderProcessView,
+    PaymentCallbackSimulationView,
     PaymentConfigView,
 )
 
@@ -19,9 +21,11 @@ urlpatterns = [
     path("cart/items/<int:item_id>/", CartItemDetailView.as_view(), name="commerce_cart_item_detail"),
     path("checkout/prefill/", CheckoutPrefillView.as_view(), name="commerce_checkout_prefill"),
     path("checkout/payment-config/", PaymentConfigView.as_view(), name="commerce_payment_config"),
+    path("payments/callback/", PaymentCallbackSimulationView.as_view(), name="commerce_payment_callback"),
     path("checkout/summary/", CheckoutSummaryView.as_view(), name="commerce_checkout_summary"),
     path("checkout/place-order/", CheckoutPlaceOrderView.as_view(), name="commerce_checkout_place_order"),
     path("orders/", OrderListView.as_view(), name="commerce_order_list"),
     path("orders/<int:order_id>/", OrderDetailView.as_view(), name="commerce_order_detail"),
     path("orders/<int:order_id>/cancel/", OrderCancelView.as_view(), name="commerce_order_cancel"),
+    path("orders/<int:order_id>/process/", OrderProcessView.as_view(), name="commerce_order_process"),
 ]

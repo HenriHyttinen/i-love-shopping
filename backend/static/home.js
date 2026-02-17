@@ -1,7 +1,5 @@
 (function () {
   const U = window.ShopUI;
-  let recaptchaSiteKey = "";
-  let recaptchaWidgetId = null;
 
   function buildSearchParams() {
     const params = new URLSearchParams();
@@ -62,10 +60,10 @@
         try {
           const productId = Number(btn.getAttribute("data-add"));
           const qtyInput = root.querySelector(`input[data-qty="${productId}"]`);
-          const quantity = qtyInput ? Number(qtyInput.value || 1) : 1;
+          const quantity = Math.max(1, Number(qtyInput ? qtyInput.value || 1 : 1));
           await U.request(U.API + "/commerce/cart/items/", {
             method: "POST",
-            body: { product_id: productId, quantity: quantity },
+            body: { product_id: productId, quantity },
           });
           U.setStatus("catalog-status", "Added to cart.", "ok");
           loadCartBadge();
@@ -85,82 +83,26 @@
       U.setStatus("catalog-status", products.length + " products loaded.", "info");
     } catch (err) {
       U.setStatus("catalog-status", JSON.stringify(err), "error");
+      throw err;
     }
   }
 
-  async function register() {
-    try {
-      const email = U.byId("reg-email").value.trim();
-      const password = U.byId("reg-password").value;
-      const fullName = U.byId("reg-name").value.trim();
-      const recaptcha =
-        window.grecaptcha && recaptchaWidgetId !== null
-          ? window.grecaptcha.getResponse(recaptchaWidgetId)
-          : "";
-      if (recaptchaSiteKey && !recaptcha) {
-        U.setStatus("auth-status", "Please complete the reCAPTCHA.", "warn");
+  async function runSearchWithRetry(maxAttempts, delayMs) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        await runSearch();
         return;
+      } catch (_) {
+        // runSearch already sets UI status
       }
-      await U.request(U.API + "/auth/register/", {
-        method: "POST",
-        guest: false,
-        body: {
-          email: email,
-          password: password,
-          full_name: fullName,
-          recaptcha_token: recaptcha || "ok",
-        },
-      });
-      if (window.grecaptcha && recaptchaWidgetId !== null) {
-        window.grecaptcha.reset(recaptchaWidgetId);
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
-      U.setStatus("auth-status", "Registered successfully.", "ok");
-    } catch (err) {
-      U.setStatus("auth-status", JSON.stringify(err), "error");
-    }
-  }
-
-  async function login() {
-    try {
-      const email = U.byId("login-email").value.trim();
-      const password = U.byId("login-password").value;
-      const payload = await U.request(U.API + "/auth/login/", {
-        method: "POST",
-        guest: false,
-        body: { email, password },
-      });
-      U.setAccessToken(payload.access);
-      U.setStatus("auth-status", "Logged in. Access token is in memory only.", "ok");
-    } catch (err) {
-      U.setStatus("auth-status", JSON.stringify(err), "error");
     }
   }
 
   U.byId("search-btn").addEventListener("click", runSearch);
-  U.byId("register-btn").addEventListener("click", register);
-  U.byId("login-btn").addEventListener("click", login);
 
-  runSearch();
+  runSearchWithRetry(3, 900);
   loadCartBadge();
-  loadRecaptchaSiteKey();
 })();
-  async function loadRecaptchaSiteKey() {
-    try {
-      const data = await U.request(U.API + "/auth/recaptcha-site-key/", { guest: false });
-      recaptchaSiteKey = data.site_key || "";
-      tryRenderRecaptcha();
-    } catch (_) {
-      // Keep registration available for dev fallback.
-    }
-  }
-
-  function tryRenderRecaptcha() {
-    if (!recaptchaSiteKey || !window.grecaptcha || recaptchaWidgetId !== null) return;
-    recaptchaWidgetId = window.grecaptcha.render("recaptcha-container", {
-      sitekey: recaptchaSiteKey,
-    });
-  }
-
-  window.onRecaptchaLoaded = function () {
-    tryRenderRecaptcha();
-  };

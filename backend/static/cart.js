@@ -2,9 +2,12 @@
   const U = window.ShopUI;
 
   function itemRow(item) {
+    const thumb = item.thumbnail
+      ? `<img src="${U.esc(item.thumbnail)}" alt="${U.esc(item.name)}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;border:1px solid #1f2937;">`
+      : `<div style="width:44px;height:44px;border-radius:8px;border:1px solid #1f2937;display:grid;place-items:center;color:#9ca3af;">N/A</div>`;
     return `
       <tr>
-        <td>#${item.id}</td>
+        <td><div class="btn-row" style="gap:8px;align-items:center;">${thumb}<span>#${item.id}</span></div></td>
         <td>${U.esc(item.name)}</td>
         <td>${U.fmtMoney(item.price)}</td>
         <td>
@@ -38,14 +41,22 @@
             <h3>${U.esc(p.name)}</h3>
             <div class="muted">Stock ${p.stock_quantity}</div>
             <div style="font-weight:700; margin:8px 0">${U.fmtMoney(p.price)}</div>
-            <button data-rec-add="${p.id}">Add</button>
+            <div class="btn-row" style="gap:8px; align-items:center;">
+              <input data-rec-qty="${p.id}" type="number" min="1" value="1" style="width:72px;">
+              <button data-rec-add="${p.id}">Add</button>
+            </div>
           </article>
         `
       )
       .join("");
 
     root.querySelectorAll("button[data-rec-add]").forEach((btn) => {
-      btn.addEventListener("click", () => addToCart(Number(btn.getAttribute("data-rec-add")), 1));
+      btn.addEventListener("click", () => {
+        const productId = Number(btn.getAttribute("data-rec-add"));
+        const qtyInput = root.querySelector(`input[data-rec-qty="${productId}"]`);
+        const qty = Math.max(1, Number(qtyInput ? qtyInput.value : 1) || 1);
+        addToCart(productId, qty);
+      });
     });
   }
 

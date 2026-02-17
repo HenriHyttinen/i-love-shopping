@@ -269,3 +269,21 @@ class AuthFlowTests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 401)
+
+    def test_current_user_requires_auth(self):
+        response = self.client.get("/api/auth/me/")
+        self.assertEqual(response.status_code, 401)
+
+    def test_current_user_returns_profile(self):
+        user = User.objects.create_user(email="me@example.com", password="StrongPass123!", full_name="Me User")
+        login = self.client.post(
+            "/api/auth/login/",
+            {"email": "me@example.com", "password": "StrongPass123!"},
+            format="json",
+        )
+        response = self.client.get(
+            "/api/auth/me/",
+            HTTP_AUTHORIZATION=f"Bearer {login.data['access']}",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["email"], "me@example.com")

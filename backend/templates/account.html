@@ -1,0 +1,57 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Account | Hardware Shop</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'ui.css' %}">
+</head>
+<body>
+<header>
+  <div class="nav-wrap">
+    <div>
+      <div class="brand">Hardware Shop</div>
+      <div class="footer-note">My Account</div>
+    </div>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/cart/">Cart</a>
+      <a href="/checkout/">Checkout</a>
+      <a href="/orders/">Orders</a>
+      <span id="nav-guest">
+        <a href="/login/">Login</a>
+        <a href="/register/">Register</a>
+      </span>
+      <span id="nav-member" style="display:none;">
+        <a class="active" href="/account/">Account</a>
+        <a href="#" id="nav-logout">Logout</a>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="panel" style="max-width:760px; margin:24px auto;">
+    <h1>Account Overview</h1>
+    <div class="grid">
+      <div><strong>Name</strong><div id="acc-name" class="muted">-</div></div>
+      <div><strong>Email</strong><div id="acc-email" class="muted">-</div></div>
+      <div><strong>Role</strong><div id="acc-role" class="muted">-</div></div>
+    </div>
+    <div class="btn-row" style="margin-top:12px;">
+      <button id="go-orders">View Orders</button>
+      <button class="secondary" id="go-checkout-guest">Checkout</button>
+    </div>
+    <div id="account-status" class="status info">Loading...</div>
+  </section>
+</main>
+
+<script src="{% static 'ui.js' %}"></script>
+<script src="{% static 'auth.js' %}"></script>
+<script src="{% static 'account.js' %}"></script>
+</body>
+</html>

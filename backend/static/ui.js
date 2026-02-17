@@ -1,10 +1,13 @@
 (function () {
   const GUEST_KEY = "guest_cart_token";
+  const ACCESS_KEY = "shop_access_token";
 
-  let accessToken = "";
+  let accessToken = sessionStorage.getItem(ACCESS_KEY) || "";
 
   function setAccessToken(token) {
     accessToken = token || "";
+    if (accessToken) sessionStorage.setItem(ACCESS_KEY, accessToken);
+    else sessionStorage.removeItem(ACCESS_KEY);
   }
 
   function getAccessToken() {
@@ -18,6 +21,15 @@
   function setGuestToken(token) {
     if (token) {
       localStorage.setItem(GUEST_KEY, token);
+    }
+  }
+
+  async function fetchCurrentUser() {
+    if (!accessToken) return null;
+    try {
+      return await request("http://localhost:8000/api/auth/me/", { auth: true, guest: false });
+    } catch (_) {
+      return null;
     }
   }
 
@@ -88,6 +100,7 @@
     getAccessToken,
     getGuestToken,
     setGuestToken,
+    fetchCurrentUser,
     request,
     byId,
     setStatus,

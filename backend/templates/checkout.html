@@ -23,6 +23,14 @@
       <a href="/cart/">Cart</a>
       <a class="active" href="/checkout/">Checkout</a>
       <a href="/orders/">Orders</a>
+      <span id="nav-guest">
+        <a href="/login/">Login</a>
+        <a href="/register/">Register</a>
+      </span>
+      <span id="nav-member" style="display:none;">
+        <a href="/account/">Account</a>
+        <a href="#" id="nav-logout">Logout</a>
+      </span>
     </nav>
   </div>
 </header>
@@ -30,7 +38,11 @@
 <main>
   <section class="panel">
     <h1>Checkout</h1>
-    <p class="muted">Login is optional. Logged users can prefill name/email.</p>
+    <p class="muted">Login is optional. Logged users can prefill name/email. Guests can continue directly.</p>
+    <div class="btn-row" style="margin:6px 0 10px;">
+      <a href="/login/?next=/checkout/" class="badge" style="text-decoration:none;">Login for faster checkout</a>
+      <span class="badge">or continue as guest</span>
+    </div>
     <div class="cols-2">
       <div>
         <label>Login Email</label><input id="auth-email" type="email" placeholder="user@example.com">
@@ -57,15 +69,33 @@
       <div><label>Country</label><input id="country" type="text"></div>
       <div><label>Shipping option</label><select id="shipping_option"><option value="standard">standard</option><option value="express">express</option></select></div>
       <div><label>Payment method</label><select id="payment_method"><option value="stripe_sandbox">stripe_sandbox</option><option value="paypal_sandbox">paypal_sandbox</option></select></div>
-      <div><label>Card number</label><input id="card_number" type="text" placeholder="4242424242424242"></div>
-      <div><label>Expiry month</label><input id="expiry_month" type="number" value="12"></div>
-      <div><label>Expiry year</label><input id="expiry_year" type="number" value="2028"></div>
-      <div><label>CVV</label><input id="cvv" type="text" value="123"></div>
+      <div>
+        <label>Sandbox payment outcome</label>
+        <select id="payment_scenario">
+          <option value="success">success</option>
+          <option value="insufficient_funds">insufficient_funds</option>
+          <option value="invalid_card_number">invalid_card_number</option>
+          <option value="expired_card">expired_card</option>
+          <option value="gateway_timeout">gateway_timeout</option>
+        </select>
+      </div>
+      <div>
+        <label>Manual payment token (optional)</label>
+        <input id="payment_token_manual" type="text" placeholder="tok_success or tok_fail_*">
+      </div>
+      <div>
+        <label>Sandbox card number (local-only)</label>
+        <input id="card_number" type="text" inputmode="numeric" placeholder="4242424242424242">
+      </div>
+      <div><label>Expiry month</label><input id="expiry_month" type="number" min="1" max="12" placeholder="12"></div>
+      <div><label>Expiry year</label><input id="expiry_year" type="number" min="2024" max="2100" placeholder="2030"></div>
+      <div><label>CVV</label><input id="cvv" type="text" inputmode="numeric" placeholder="123"></div>
     </div>
     <div id="stripe-wrap" class="panel" style="display:none; margin-top:10px; padding:10px;">
       <label>Stripe Card Element</label>
       <div id="stripe-card" style="padding:10px; border:1px solid var(--line); border-radius:10px;"></div>
     </div>
+    <p class="muted" style="margin-top:8px;">Card details are collected via provider elements when available. Sandbox card fields are validated in-browser only and never sent to backend as raw card data.</p>
     <div class="btn-row" style="margin-top:10px;">
       <button class="secondary" id="prefill-btn">Prefill</button>
       <button class="secondary" id="summary-btn">Load Summary</button>
@@ -88,6 +118,8 @@
 </main>
 
 <script src="{% static 'ui.js' %}"></script>
+<script src="{% static 'auth.js' %}"></script>
 <script src="{% static 'checkout.js' %}"></script>
+<script>if (window.ShopAuth) window.ShopAuth.refreshAuthNav();</script>
 </body>
 </html>

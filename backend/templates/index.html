@@ -22,41 +22,30 @@
       <a href="/cart/">Cart</a>
       <a href="/checkout/">Checkout</a>
       <a href="/orders/">Orders</a>
+      <span id="nav-guest">
+        <a href="/login/">Login</a>
+        <a href="/register/">Register</a>
+      </span>
+      <span id="nav-member" style="display:none;">
+        <a href="/account/">Account</a>
+        <a href="#" id="nav-logout">Logout</a>
+      </span>
     </nav>
   </div>
 </header>
 
 <main>
   <section class="panel">
-    <h1>Commerce Workspace</h1>
-    <p class="muted">Use focused pages for flow testing. Quick catalog and auth controls are below.</p>
+    <h1>Hardware Shop</h1>
+    <p class="muted">Browse products, add to cart, and checkout as guest or signed-in customer.</p>
     <div class="btn-row">
       <a href="/cart/" class="badge" style="text-decoration:none;">Open Cart</a>
       <a href="/checkout/" class="badge" style="text-decoration:none;">Open Checkout</a>
       <a href="/orders/" class="badge" style="text-decoration:none;">Open Orders</a>
+      <a href="/login/" class="badge" style="text-decoration:none;">Login</a>
+      <a href="/register/" class="badge" style="text-decoration:none;">Register</a>
       <span id="cart-badge" class="badge">0 items</span>
     </div>
-  </section>
-
-  <section class="panel">
-    <h2>Account Quick Actions</h2>
-    <div class="cols-2">
-      <div>
-        <h3>Register</h3>
-        <label>Email</label><input id="reg-email" type="email" placeholder="user@example.com">
-        <label>Password</label><input id="reg-password" type="password" placeholder="StrongPass123!">
-        <label>Full Name</label><input id="reg-name" type="text" placeholder="User Name">
-        <label>reCAPTCHA token (optional in dev)</label><input id="reg-captcha" type="text" placeholder="token">
-        <button id="register-btn">Register</button>
-      </div>
-      <div>
-        <h3>Login</h3>
-        <label>Email</label><input id="login-email" type="email" placeholder="user@example.com">
-        <label>Password</label><input id="login-password" type="password" placeholder="StrongPass123!">
-        <button id="login-btn">Login</button>
-      </div>
-    </div>
-    <div id="auth-status" class="status info">Ready.</div>
   </section>
 
   <section class="panel">
@@ -89,6 +78,8 @@
 </main>
 
 <script src="{% static 'ui.js' %}"></script>
+<script src="{% static 'auth.js' %}"></script>
 <script src="{% static 'home.js' %}"></script>
+<script>if (window.ShopAuth) window.ShopAuth.refreshAuthNav();</script>
 </body>
 </html>

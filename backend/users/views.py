@@ -257,3 +257,18 @@ class RecaptchaSiteKeyView(APIView):
         from django.conf import settings
 
         return Response({"site_key": settings.RECAPTCHA_SITE_KEY or ""})
+
+
+class CurrentUserView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        return Response(
+            {
+                "id": user.id,
+                "email": user.email,
+                "full_name": user.full_name,
+                "is_staff": bool(user.is_staff),
+            }
+        )

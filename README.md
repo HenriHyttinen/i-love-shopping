@@ -202,6 +202,24 @@ Endpoints:
 - `POST /api/auth/password/reset/`
 - `POST /api/auth/password/reset/confirm/`
 
+## Checkout Notification Emails
+Order payment notifications are sent by email on both success and failure.
+
+Recommended SMTP config in `backend/.env`:
+```
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=your-email@gmail.com
+EMAIL_HOST_PASSWORD=your-app-password
+EMAIL_USE_TLS=1
+DEFAULT_FROM_EMAIL=noreply@hardware-shop.test
+```
+
+Development fallback:
+- If `EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend`, emails are printed in backend logs and not delivered to real inboxes.
+- Checkout still completes, and API response includes a `notification` object with delivery status (`sent`, `failed`, `skipped`, or `queued`).
+
 ## reCAPTCHA Setup
 - Add both keys to `backend/.env`:
   - `RECAPTCHA_SITE_KEY=...`
@@ -224,12 +242,15 @@ Endpoints:
 cp backend/envtemplate.txt backend/.env
 ```
 2) Fill in Google OAuth + reCAPTCHA secrets in `backend/.env`.
+   - Set a strong random `SECRET_KEY` (32+ bytes for safer JWT signing).
    - Google OAuth redirect URIs: `http://localhost:8000` and `http://localhost:8000/api/auth/oauth/google/`
    - Allowed JS origins: `http://localhost:8000`
    - Set `COMMERCE_ENCRYPTION_KEY` for encrypted order/payment data at rest (Fernet key).  
      If omitted, a fallback key is derived from `SECRET_KEY` for development.
    - Optional Stripe Elements secure form:
      - `STRIPE_PUBLISHABLE_KEY=pk_test_...`
+   - Optional payment callback protection:
+     - `PAYMENT_CALLBACK_SECRET=your-shared-callback-secret`
 3) Start everything
 ```
 docker-compose up --build
@@ -280,12 +301,16 @@ python manage.py cleanup_access_tokens
 - Demo page: `http://localhost:8000/`
 - Note: the demo UI is served by Django at `http://localhost:8000/`.
 - Focused testing pages:
+  - `http://localhost:8000/login/`
+  - `http://localhost:8000/register/`
+  - `http://localhost:8000/account/`
   - `http://localhost:8000/cart/`
   - `http://localhost:8000/checkout/`
   - `http://localhost:8000/orders/`
 
 Frontend structure:
-- `index.html` is now a clean home dashboard with auth quick-actions and catalog browser.
+- `index.html` is now a storefront-style home dashboard with catalog browser and cart quick actions.
+- `login.html`, `register.html`, and `account.html` provide dedicated account flows.
 - `cart.html`, `checkout.html`, and `orders.html` are dedicated flow pages for easier review/demo.
 - Shared UI layer lives in:
   - `backend/static/ui.css`
@@ -303,6 +328,7 @@ Frontend structure:
 - Logout (blacklist refresh): `POST /auth/logout/`
 - Logout all sessions: `POST /auth/logout-all/`
 - Revoke access token: `POST /auth/token/revoke/`
+- Current user profile: `GET /auth/me/`
 - 2FA setup: `POST /auth/2fa/setup/`
 - 2FA verify: `POST /auth/2fa/verify/`
 - 2FA disable: `POST /auth/2fa/disable/`
@@ -361,16 +387,35 @@ Upload rules: PNG/JPEG only, max 2MB, max 5 images per product, oversized images
   - `GET /commerce/orders/?status=&date_from=&date_to=`
   - `GET /commerce/orders/{order_id}/`
   - `POST /commerce/orders/{order_id}/cancel/`
+  - `POST /commerce/orders/{order_id}/process/` (staff only)
 
 Payment simulation behavior:
 - Providers: `stripe_sandbox`, `paypal_sandbox`
-- Example success card: `4242424242424242`
-- If Stripe publishable key is configured, frontend can use Stripe secure Card Element and send tokenized `payment_token` instead of raw card fields.
+- Frontend sends tokenized `payment_token` only (no raw card fields are accepted by checkout API).
+- If Stripe publishable key is configured, frontend uses Stripe secure Card Element and sends Stripe `pm_*` tokens.
+- For sandbox/manual simulation, use `tok_*` tokens.
+- When Stripe Element is not available, sandbox card number/expiry/CVV are validated in-browser and converted to `tok_*`; raw card values are never sent to backend.
 - Failure scenarios:
-  - `4000000000009995` → insufficient funds
-  - `4000000000000002` → invalid card number
-  - `4000000000000069` → expired card
-  - `4000000000000127` → gateway timeout
+  - `tok_fail_insufficient_funds` → insufficient funds
+  - `tok_fail_invalid_card` → invalid card number
+  - `tok_fail_expired_card` → expired card
+  - `tok_fail_gateway_timeout` → gateway timeout
+- Simulated provider callback endpoint:
+  - `POST /commerce/payments/callback/` with `external_reference`, `status`, and optional failure payload.
+  - Optional header when configured: `X-Payment-Callback-Secret: <PAYMENT_CALLBACK_SECRET>`
+  - Terminal states are protected from regression (e.g., successful payment cannot transition to failed).
+  - Example callback request:
+```
+curl -X POST http://localhost:8000/api/commerce/payments/callback/ \
+  -H "Content-Type: application/json" \
+  -H "X-Payment-Callback-Secret: your-shared-callback-secret" \
+  -d '{
+    "external_reference": "txn_1234567890abcdef",
+    "status": "failure",
+    "failure_code": "gateway_timeout",
+    "message": "Timed out at provider edge"
+  }'
+```
 
 Message queue flow:
 - Payment events are published to `PaymentStatusMessage` queue table.
@@ -378,9 +423,14 @@ Message queue flow:
 - Failure or cancellation restores inventory to prevent stock drift.
 
 Security and data handling:
-- Raw card data is never persisted.
+- Raw card data is not accepted by the checkout API.
 - Stored order/payment payloads (shipping address, payment metadata) are encrypted at rest.
 - Checkout stock updates use transactional row locking to prevent overselling on concurrent payments.
+
+PCI DSS notes:
+- Sensitive authentication data (full PAN, CVV) must not be stored after authorization.
+- This project keeps payment handling tokenized: backend accepts provider/sandbox tokens only.
+- Card input validation is done in secure provider elements (Stripe) or local sandbox simulation, and raw card fields are not persisted or transmitted to backend APIs.
 
 ## Task Specs
 - Project 1 specification: `task.md`
@@ -432,12 +482,22 @@ docker-compose exec -T backend python manage.py test
 ## Test Coverage Map
 - Auth: register/login, refresh rotation, logout, logout-all, access token revoke, 2FA validation.
 - Catalog: list/detail, filters/sorting, search suggest, categories/brands, image upload permissions.
-- Security: invalid filters, malformed inputs, and auth edge cases.
+- Security: invalid filters, malformed inputs, auth edge cases, callback secret validation, and payment-state transition guards.
 
 Manual checks (periodic):
 - CAPTCHA verification during register (with a real token).
 - Google OAuth login flow (client ID + redirect URI).
 - 2FA setup + login with TOTP code.
+
+Manual QA for Commerce (review demo):
+1. Cart flow: add item, update quantity, remove item, and verify subtotal changes immediately.
+2. Guest persistence: add item as guest, refresh page, verify cart survives via `X-Guest-Cart-Token`.
+3. Logged-in persistence: login, verify cart is user-bound and remains across requests.
+4. Checkout success: place order with `tok_success`, confirm status `payment_successful`.
+5. Checkout failures: test `tok_fail_insufficient_funds`, `tok_fail_invalid_card`, `tok_fail_expired_card`, `tok_fail_gateway_timeout` and verify clear failure status.
+6. Callback security: set `PAYMENT_CALLBACK_SECRET`, call callback without header and expect `403`, then with header and expect success.
+7. State guard: attempt to move a `payment_successful` order to failure via callback and verify `409`.
+8. Staff processing: mark paid order as processed with `/commerce/orders/{id}/process/` as staff, then verify cancellation is blocked.
 
 ## Reviewer Checklist
 - Register user with CAPTCHA token.

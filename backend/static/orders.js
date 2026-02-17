@@ -72,10 +72,45 @@
     try {
       const detail = await U.request(U.API + "/commerce/orders/" + orderId + "/", { auth: true });
       U.byId("orders-json").textContent = JSON.stringify(detail, null, 2);
+      renderDetails(detail);
       U.setStatus("orders-status", "Order #" + orderId + " loaded.", "info");
     } catch (err) {
       U.setStatus("orders-status", JSON.stringify(err), "error");
     }
+  }
+
+  function renderDetails(detail) {
+    const root = U.byId("order-detail-panel");
+    if (!detail || !detail.id) {
+      root.innerHTML = "<div class='muted'>Order detail unavailable.</div>";
+      return;
+    }
+    const items = (detail.items || [])
+      .map((item) => `<li>${U.esc(item.product_name)} x ${item.quantity} • ${U.fmtMoney(item.line_total)}</li>`)
+      .join("");
+    const updates = (detail.status_updates || [])
+      .map(
+        (u) =>
+          `<li><span class="badge">${U.esc(u.status)}</span> ${U.esc(u.note || "")} <span class="muted">(${new Date(u.created_at).toLocaleString()})</span></li>`
+      )
+      .join("");
+
+    root.innerHTML = `
+      <div class="grid">
+        <div><strong>Order #${detail.id}</strong></div>
+        <div><span class="badge">${U.esc(detail.status)}</span></div>
+        <div>Subtotal ${U.fmtMoney(detail.subtotal)}</div>
+        <div>Shipping ${U.fmtMoney(detail.shipping_cost)}</div>
+        <div><strong>Total ${U.fmtMoney(detail.total)}</strong></div>
+        <div>Tracking ${U.esc(detail.tracking_code || "N/A")}</div>
+      </div>
+      <h4 style="margin-top:10px">Shipping Address</h4>
+      <div class="muted">${U.esc((detail.shipping_address && detail.shipping_address.line1) || "")}, ${U.esc((detail.shipping_address && detail.shipping_address.city) || "")}, ${U.esc((detail.shipping_address && detail.shipping_address.state) || "")}, ${U.esc((detail.shipping_address && detail.shipping_address.postal_code) || "")}, ${U.esc((detail.shipping_address && detail.shipping_address.country) || "")}</div>
+      <h4 style="margin-top:10px">Items</h4>
+      <ul style="margin:6px 0 0 18px">${items || "<li class='muted'>No items.</li>"}</ul>
+      <h4 style="margin-top:10px">Status Updates</h4>
+      <ul style="margin:6px 0 0 18px">${updates || "<li class='muted'>No status updates.</li>"}</ul>
+    `;
   }
 
   async function cancelOrder(orderId) {

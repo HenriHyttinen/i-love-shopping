@@ -8,14 +8,23 @@ from rest_framework.views import APIView
 
 from catalog.models import Product
 
-from .models import CartItem, Order, OrderStatusEvent
+from .models import CartItem, Order, OrderStatusEvent, PaymentStatusMessage, PaymentTransaction
 from .serializers import (
     CartItemMutationSerializer,
     CartItemUpdateSerializer,
     CheckoutSerializer,
     OrderSerializer,
 )
-from .services import cart_totals, get_or_create_cart, place_order_from_cart, recommended_products
+from .services import (
+    cart_totals,
+    consume_payment_messages,
+    get_or_create_cart,
+    is_allowed_payment_order_transition,
+    map_message_status_to_order_status,
+    place_order_from_cart,
+    publish_payment_message,
+    recommended_products,
+)
 
 
 class CartView(APIView):
@@ -73,6 +82,7 @@ class CartItemsView(APIView):
             item.save(update_fields=["quantity", "unit_price", "updated_at"])
 
         payload = cart_totals(cart)
+        payload["recommended_products"] = recommended_products(cart)
         payload["guest_cart_token"] = guest_token
         return Response(payload, status=201)
 
@@ -107,6 +117,7 @@ class CartItemDetailView(APIView):
             item.save(update_fields=["quantity", "updated_at"])
 
         payload = cart_totals(cart)
+        payload["recommended_products"] = recommended_products(cart)
         payload["guest_cart_token"] = guest_token
         return Response(payload)
 
@@ -118,6 +129,7 @@ class CartItemDetailView(APIView):
             return Response({"detail": "Cart item not found."}, status=404)
         item.delete()
         payload = cart_totals(cart)
+        payload["recommended_products"] = recommended_products(cart)
         payload["guest_cart_token"] = guest_token
         return Response(payload)
 
@@ -162,7 +174,7 @@ class CheckoutPlaceOrderView(APIView):
         cart = get_or_create_cart(user=request.user if request.user.is_authenticated else None, guest_token=guest_token)
 
         try:
-            order, payment_txn = place_order_from_cart(
+            order, payment_txn, notification = place_order_from_cart(
                 cart=cart,
                 customer_payload={
                     "full_name": serializer.validated_data["full_name"],
@@ -172,10 +184,6 @@ class CheckoutPlaceOrderView(APIView):
                 },
                 payment_payload={
                     "payment_token": serializer.validated_data.get("payment_token", ""),
-                    "card_number": serializer.validated_data.get("card_number", ""),
-                    "expiry_month": serializer.validated_data.get("expiry_month"),
-                    "expiry_year": serializer.validated_data.get("expiry_year"),
-                    "cvv": serializer.validated_data.get("cvv", ""),
                 },
                 shipping_option=serializer.validated_data["shipping_option"],
                 payment_method=serializer.validated_data["payment_method"],
@@ -197,6 +205,7 @@ class CheckoutPlaceOrderView(APIView):
                     "failure_code": payment_txn.failure_code,
                     "external_reference": payment_txn.external_reference,
                 },
+                "notification": notification,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -237,6 +246,66 @@ class PaymentConfigView(APIView):
 
     def get(self, request):
         return Response({"stripe_publishable_key": settings.STRIPE_PUBLISHABLE_KEY or ""})
+
+
+class PaymentCallbackSimulationView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @transaction.atomic
+    def post(self, request):
+        configured_secret = (settings.PAYMENT_CALLBACK_SECRET or "").strip()
+        if configured_secret:
+            provided_secret = request.headers.get("X-Payment-Callback-Secret", "").strip()
+            if provided_secret != configured_secret:
+                return Response({"detail": "Unauthorized callback."}, status=403)
+
+        external_reference = str(request.data.get("external_reference", "")).strip()
+        callback_status = str(request.data.get("status", "")).strip().lower()
+        failure_code = str(request.data.get("failure_code", "")).strip()
+        message = str(request.data.get("message", "")).strip()
+
+        if not external_reference:
+            return Response({"detail": "external_reference is required."}, status=400)
+        if callback_status not in {"pending", "success", "failure"}:
+            return Response({"detail": "status must be one of: pending, success, failure."}, status=400)
+
+        transaction_obj = (
+            PaymentTransaction.objects.select_for_update().select_related("order").filter(external_reference=external_reference).first()
+        )
+        if not transaction_obj:
+            return Response({"detail": "Payment transaction not found."}, status=404)
+
+        target_order_status = map_message_status_to_order_status(callback_status)
+        if not is_allowed_payment_order_transition(transaction_obj.order.status, target_order_status):
+            return Response(
+                {"detail": f"Invalid payment status transition to {target_order_status}."},
+                status=409,
+            )
+
+        transaction_obj.status = callback_status
+        transaction_obj.failure_code = failure_code if callback_status == "failure" else ""
+        transaction_obj.save(update_fields=["status", "failure_code", "updated_at"])
+
+        publish_payment_message(
+            order=transaction_obj.order,
+            status=callback_status,
+            transaction=transaction_obj,
+            payload={"failure_code": failure_code, "message": message},
+        )
+        consume_payment_messages(order_id=transaction_obj.order_id)
+
+        return Response(
+            {
+                "detail": "Callback processed.",
+                "order_id": transaction_obj.order_id,
+                "transaction_id": transaction_obj.id,
+                "status": callback_status,
+                "published": PaymentStatusMessage.objects.filter(
+                    transaction=transaction_obj,
+                    status=callback_status,
+                ).count(),
+            }
+        )
 
 
 class OrderDetailView(APIView):
@@ -280,6 +349,8 @@ class OrderCancelView(APIView):
             return Response({"detail": "Order already processed and cannot be cancelled."}, status=400)
         if order.status == Order.STATUS_CANCELLED:
             return Response({"detail": "Order already cancelled."}, status=400)
+        if order.status not in {Order.STATUS_PENDING_PAYMENT, Order.STATUS_PAYMENT_SUCCESSFUL}:
+            return Response({"detail": "Order cannot be cancelled in its current state."}, status=400)
 
         order.status = Order.STATUS_CANCELLED
         order.save(update_fields=["status", "updated_at"])
@@ -289,3 +360,25 @@ class OrderCancelView(APIView):
 
         OrderStatusEvent.objects.create(order=order, status=Order.STATUS_CANCELLED, note="Order cancelled by user")
         return Response({"detail": "Order cancelled."})
+
+
+class OrderProcessView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, order_id):
+        if not request.user.is_staff:
+            return Response({"detail": "Only staff can process orders."}, status=403)
+
+        order = Order.objects.select_for_update().filter(id=order_id).first()
+        if not order:
+            return Response({"detail": "Order not found."}, status=404)
+        if order.status != Order.STATUS_PAYMENT_SUCCESSFUL:
+            return Response({"detail": "Only paid orders can be marked as processed."}, status=400)
+        if order.is_processed:
+            return Response({"detail": "Order already processed."}, status=200)
+
+        order.is_processed = True
+        order.save(update_fields=["is_processed", "updated_at"])
+        OrderStatusEvent.objects.create(order=order, status=order.status, note="Order marked as processed")
+        return Response({"detail": "Order marked as processed."})

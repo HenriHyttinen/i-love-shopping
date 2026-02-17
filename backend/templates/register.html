@@ -1,0 +1,60 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Register | Hardware Shop</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'ui.css' %}">
+</head>
+<body>
+<header>
+  <div class="nav-wrap">
+    <div>
+      <div class="brand">Hardware Shop</div>
+      <div class="footer-note">Create Account</div>
+    </div>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/cart/">Cart</a>
+      <a href="/checkout/">Checkout</a>
+      <a href="/orders/">Orders</a>
+      <span id="nav-guest">
+        <a href="/login/">Login</a>
+        <a class="active" href="/register/">Register</a>
+      </span>
+      <span id="nav-member" style="display:none;">
+        <a href="/account/">Account</a>
+        <a href="#" id="nav-logout">Logout</a>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="panel" style="max-width:620px; margin:24px auto;">
+    <h1>Register</h1>
+    <p class="muted">Create your account and continue shopping.</p>
+    <label>Full Name</label><input id="full_name" type="text" placeholder="Jane Doe">
+    <label>Email</label><input id="email" type="email" placeholder="you@example.com">
+    <label>Password</label><input id="password" type="password" placeholder="StrongPass123!">
+    <label>reCAPTCHA</label>
+    <div id="recaptcha-container" style="min-height:78px;"></div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button id="register-btn">Create Account</button>
+      <a href="/checkout/" class="badge" style="text-decoration:none;">Continue as guest</a>
+    </div>
+    <div id="register-status" class="status info">Ready.</div>
+    <p class="muted" style="margin-top:10px;">Already have an account? <a href="/login/">Login</a>.</p>
+  </section>
+</main>
+
+<script src="{% static 'ui.js' %}"></script>
+<script src="{% static 'auth.js' %}"></script>
+<script src="https://www.google.com/recaptcha/api.js?render=explicit&onload=onRecaptchaLoaded" async defer></script>
+<script src="{% static 'register.js' %}"></script>
+</body>
+</html>

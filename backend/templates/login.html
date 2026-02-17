@@ -1,0 +1,57 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login | Hardware Shop</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'ui.css' %}">
+</head>
+<body>
+<header>
+  <div class="nav-wrap">
+    <div>
+      <div class="brand">Hardware Shop</div>
+      <div class="footer-note">Customer Sign In</div>
+    </div>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/cart/">Cart</a>
+      <a href="/checkout/">Checkout</a>
+      <a href="/orders/">Orders</a>
+      <span id="nav-guest">
+        <a class="active" href="/login/">Login</a>
+        <a href="/register/">Register</a>
+      </span>
+      <span id="nav-member" style="display:none;">
+        <a href="/account/">Account</a>
+        <a href="#" id="nav-logout">Logout</a>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="panel" style="max-width:620px; margin:24px auto;">
+    <h1>Login</h1>
+    <p class="muted">Sign in to access saved cart, orders, and checkout prefill.</p>
+    <label>Email</label><input id="email" type="email" placeholder="you@example.com">
+    <label>Password</label><input id="password" type="password" placeholder="Your password">
+    <label>Next URL (optional)</label><input id="next" type="text" placeholder="/account/">
+    <div class="btn-row" style="margin-top:10px;">
+      <button id="login-btn">Login</button>
+      <a href="/checkout/" class="badge" style="text-decoration:none;">Continue as guest</a>
+    </div>
+    <div id="login-status" class="status info">Ready.</div>
+    <p class="muted" style="margin-top:10px;">No account yet? <a href="/register/">Create one</a>.</p>
+  </section>
+</main>
+
+<script src="{% static 'ui.js' %}"></script>
+<script src="{% static 'auth.js' %}"></script>
+<script src="{% static 'login.js' %}"></script>
+</body>
+</html>

@@ -22,6 +22,14 @@
       <a href="/cart/">Cart</a>
       <a href="/checkout/">Checkout</a>
       <a class="active" href="/orders/">Orders</a>
+      <span id="nav-guest">
+        <a href="/login/">Login</a>
+        <a href="/register/">Register</a>
+      </span>
+      <span id="nav-member" style="display:none;">
+        <a href="/account/">Account</a>
+        <a href="#" id="nav-logout">Logout</a>
+      </span>
     </nav>
   </div>
 </header>
@@ -59,12 +67,19 @@
   </section>
 
   <section class="panel">
+    <h2>Order Details</h2>
+    <div id="order-detail-panel" class="muted">Select an order to view full details and status history.</div>
+  </section>
+
+  <section class="panel">
     <h2>Debug</h2>
     <pre id="orders-json" class="code">[]</pre>
   </section>
 </main>
 
 <script src="{% static 'ui.js' %}"></script>
+<script src="{% static 'auth.js' %}"></script>
 <script src="{% static 'orders.js' %}"></script>
+<script>if (window.ShopAuth) window.ShopAuth.refreshAuthNav();</script>
 </body>
 </html>

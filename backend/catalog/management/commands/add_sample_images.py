@@ -4,6 +4,7 @@ import time
 
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
+from django.utils.text import slugify
 
 from catalog.models import Product, ProductImage
 
@@ -29,11 +30,12 @@ class Command(BaseCommand):
 
         replace = options["replace"]
         use_real = options["use_real"]
-        products = Product.objects.all()
+        products = Product.objects.order_by("id")
         if not products:
             self.stdout.write(self.style.WARNING("No products found"))
             return
         real_files = []
+        real_lookup = {}
         if use_real:
             media_dir = Path(settings.MEDIA_ROOT) / "products"
             if media_dir.exists():
@@ -46,14 +48,29 @@ class Command(BaseCommand):
                         and "_sample" not in path.name
                     ]
                 )
-        real_iter = iter(real_files)
+                for path in real_files:
+                    stem = slugify(path.stem)
+                    if stem:
+                        real_lookup[stem] = path
 
         for product in products:
             if product.images.exists() and not replace:
                 continue
             if replace:
                 product.images.all().delete()
-            image_path = next(real_iter, None)
+
+            image_path = None
+            if use_real and real_lookup:
+                product_slug = slugify(product.name)
+                product_tokens = [token for token in product_slug.split("-") if len(token) > 2]
+                for file_stem, file_path in real_lookup.items():
+                    if product_slug and product_slug in file_stem:
+                        image_path = file_path
+                        break
+                    if product_tokens and all(token in file_stem for token in product_tokens[:2]):
+                        image_path = file_path
+                        break
+
             if image_path:
                 content = ContentFile(image_path.read_bytes(), name=image_path.name)
                 ProductImage.objects.create(

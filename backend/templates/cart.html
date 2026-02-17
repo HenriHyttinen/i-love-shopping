@@ -22,6 +22,14 @@
       <a class="active" href="/cart/">Cart</a>
       <a href="/checkout/">Checkout</a>
       <a href="/orders/">Orders</a>
+      <span id="nav-guest">
+        <a href="/login/">Login</a>
+        <a href="/register/">Register</a>
+      </span>
+      <span id="nav-member" style="display:none;">
+        <a href="/account/">Account</a>
+        <a href="#" id="nav-logout">Logout</a>
+      </span>
     </nav>
   </div>
 </header>
@@ -65,6 +73,8 @@
 </main>
 
 <script src="{% static 'ui.js' %}"></script>
+<script src="{% static 'auth.js' %}"></script>
 <script src="{% static 'cart.js' %}"></script>
+<script>if (window.ShopAuth) window.ShopAuth.refreshAuthNav();</script>
 </body>
 </html>

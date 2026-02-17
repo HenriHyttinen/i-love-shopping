@@ -1,6 +1,5 @@
 import re
 
-from django.utils import timezone
 from rest_framework import serializers
 
 from .crypto import decrypt_json
@@ -27,31 +26,20 @@ class CheckoutSerializer(serializers.Serializer):
     shipping_address = serializers.DictField(required=True)
     shipping_option = serializers.ChoiceField(choices=[Order.SHIPPING_STANDARD, Order.SHIPPING_EXPRESS])
     payment_method = serializers.ChoiceField(choices=["stripe_sandbox", "paypal_sandbox"])
-    payment_token = serializers.CharField(required=False, allow_blank=True)
-    card_number = serializers.CharField(required=False, allow_blank=True)
-    expiry_month = serializers.IntegerField(min_value=1, max_value=12, required=False)
-    expiry_year = serializers.IntegerField(min_value=2000, required=False)
-    cvv = serializers.CharField(min_length=3, max_length=4, required=False, allow_blank=True)
+    payment_token = serializers.CharField(required=True, allow_blank=False)
 
     def validate_phone(self, value):
         if not PHONE_RE.match(value):
             raise serializers.ValidationError("Invalid phone format.")
         return value
 
-    def validate_card_number(self, value):
-        if not value.isdigit() or len(value) < 12 or len(value) > 19:
-            raise serializers.ValidationError("Card number must be 12-19 digits.")
-        return value
-
-    def validate_cvv(self, value):
-        if not value.isdigit():
-            raise serializers.ValidationError("CVV must contain digits only.")
-        return value
-
-    def validate_expiry_year(self, value):
-        if value > timezone.now().year + 30:
-            raise serializers.ValidationError("Invalid expiry year.")
-        return value
+    def validate_payment_token(self, value):
+        token = (value or "").strip()
+        if len(token) < 8:
+            raise serializers.ValidationError("Invalid payment token.")
+        if not (token.startswith("pm_") or token.startswith("tok_")):
+            raise serializers.ValidationError("Unsupported payment token format.")
+        return token
 
     def validate_shipping_address(self, value):
         required_fields = ["line1", "city", "state", "postal_code", "country"]
@@ -65,18 +53,8 @@ class CheckoutSerializer(serializers.Serializer):
         return value
 
     def validate(self, attrs):
-        token = (attrs.get("payment_token") or "").strip()
-        if token:
-            return attrs
-
-        missing_fields = []
-        for key in ("card_number", "expiry_month", "expiry_year", "cvv"):
-            if not attrs.get(key):
-                missing_fields.append(key)
-        if missing_fields:
-            raise serializers.ValidationError(
-                {"payment": f"Missing required payment fields: {', '.join(missing_fields)}"}
-            )
+        if attrs["payment_method"] == "paypal_sandbox" and not attrs["payment_token"].startswith("tok_"):
+            raise serializers.ValidationError({"payment_token": "PayPal sandbox requires a tok_* payment token."})
         return attrs
 
 

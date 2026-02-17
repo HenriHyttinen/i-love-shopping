@@ -1,6 +1,6 @@
+import logging
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
 from decimal import Decimal
 
 from django.core.mail import send_mail
@@ -25,6 +25,20 @@ from .models import (
 SHIPPING_COSTS = {
     Order.SHIPPING_STANDARD: Decimal("7.90"),
     Order.SHIPPING_EXPRESS: Decimal("18.90"),
+}
+
+logger = logging.getLogger(__name__)
+
+
+ALLOWED_PAYMENT_ORDER_TRANSITIONS = {
+    Order.STATUS_PENDING_PAYMENT: {
+        Order.STATUS_PENDING_PAYMENT,
+        Order.STATUS_PAYMENT_SUCCESSFUL,
+        Order.STATUS_PAYMENT_FAILED,
+    },
+    Order.STATUS_PAYMENT_SUCCESSFUL: {Order.STATUS_PAYMENT_SUCCESSFUL},
+    Order.STATUS_PAYMENT_FAILED: {Order.STATUS_PAYMENT_FAILED},
+    Order.STATUS_CANCELLED: {Order.STATUS_CANCELLED},
 }
 
 
@@ -91,14 +105,22 @@ def recommended_products(cart: Cart, limit: int = 4) -> list:
     item_product_ids = list(cart.items.values_list("product_id", flat=True))
     if not item_product_ids:
         return []
-    brand_ids = list(Product.objects.filter(id__in=item_product_ids).values_list("brand_id", flat=True))
-    category_ids = list(Product.objects.filter(id__in=item_product_ids).values_list("category_id", flat=True))
-    products = (
-        Product.objects.filter(is_active=True, stock_quantity__gt=0)
-        .exclude(id__in=item_product_ids)
-        .filter(Q(brand_id__in=brand_ids) | Q(category_id__in=category_ids))
-        .distinct()[:limit]
-    )
+    in_stock_pool = Product.objects.filter(is_active=True, stock_quantity__gt=0).exclude(id__in=item_product_ids)
+    brand_ids = [
+        brand_id for brand_id in Product.objects.filter(id__in=item_product_ids).values_list("brand_id", flat=True) if brand_id
+    ]
+    category_ids = [
+        category_id
+        for category_id in Product.objects.filter(id__in=item_product_ids).values_list("category_id", flat=True)
+        if category_id
+    ]
+
+    products = in_stock_pool.filter(Q(brand_id__in=brand_ids) | Q(category_id__in=category_ids)).distinct()[:limit]
+
+    # Fallback so recommendations still render when cart items are unique across brand/category.
+    if not products:
+        products = in_stock_pool.order_by("-rating", "price")[:limit]
+
     return [
         {
             "id": product.id,
@@ -112,65 +134,25 @@ def recommended_products(cart: Cart, limit: int = 4) -> list:
 
 def simulate_payment(
     payment_provider: str,
-    card_number: str = "",
-    expiry_month: int | None = None,
-    expiry_year: int | None = None,
-    cvv: str = "",
     payment_token: str = "",
 ) -> PaymentResult:
     if payment_provider not in {"stripe_sandbox", "paypal_sandbox"}:
         return PaymentResult(status=PaymentTransaction.STATUS_FAILURE, failure_code="unsupported_provider", message="Unsupported payment provider.")
-    if payment_token:
-        token_failure_map = {
-            "tok_fail_insufficient_funds": ("insufficient_funds", "Card has insufficient funds."),
-            "tok_fail_invalid_card": ("invalid_card_number", "Card number was declined by provider."),
-            "tok_fail_expired_card": ("expired_card", "Card has expired."),
-            "tok_fail_gateway_timeout": ("gateway_timeout", "Payment gateway timeout. Please retry."),
-        }
-        if payment_token in token_failure_map:
-            failure_code, message = token_failure_map[payment_token]
-            return PaymentResult(
-                status=PaymentTransaction.STATUS_FAILURE,
-                failure_code=failure_code,
-                message=message,
-            )
-        return PaymentResult(status=PaymentTransaction.STATUS_SUCCESS)
-
-    if len(card_number) < 12 or not card_number.isdigit():
+    if not payment_token:
         return PaymentResult(
             status=PaymentTransaction.STATUS_FAILURE,
-            failure_code="invalid_card_number",
-            message="Invalid card number.",
-        )
-    if len(cvv) not in {3, 4} or not cvv.isdigit():
-        return PaymentResult(
-            status=PaymentTransaction.STATUS_FAILURE,
-            failure_code="invalid_cvv",
-            message="Invalid CVV.",
+            failure_code="invalid_payment_token",
+            message="Payment token is required.",
         )
 
-    if expiry_month is None or expiry_year is None:
-        return PaymentResult(
-            status=PaymentTransaction.STATUS_FAILURE,
-            failure_code="invalid_expiry",
-            message="Expiry date is required.",
-        )
-    now = datetime.utcnow()
-    if expiry_year < now.year or (expiry_year == now.year and expiry_month < now.month):
-        return PaymentResult(
-            status=PaymentTransaction.STATUS_FAILURE,
-            failure_code="expired_card",
-            message="Card has expired.",
-        )
-
-    code_map = {
-        "4000000000009995": ("insufficient_funds", "Card has insufficient funds."),
-        "4000000000000002": ("invalid_card_number", "Card number was declined by provider."),
-        "4000000000000069": ("expired_card", "Card has expired."),
-        "4000000000000127": ("gateway_timeout", "Payment gateway timeout. Please retry."),
+    token_failure_map = {
+        "tok_fail_insufficient_funds": ("insufficient_funds", "Card has insufficient funds."),
+        "tok_fail_invalid_card": ("invalid_card_number", "Card number was declined by provider."),
+        "tok_fail_expired_card": ("expired_card", "Card has expired."),
+        "tok_fail_gateway_timeout": ("gateway_timeout", "Payment gateway timeout. Please retry."),
     }
-    if card_number in code_map:
-        failure_code, message = code_map[card_number]
+    if payment_token in token_failure_map:
+        failure_code, message = token_failure_map[payment_token]
         return PaymentResult(status=PaymentTransaction.STATUS_FAILURE, failure_code=failure_code, message=message)
 
     return PaymentResult(status=PaymentTransaction.STATUS_SUCCESS)
@@ -190,8 +172,76 @@ def publish_payment_message(
     )
 
 
+def map_message_status_to_order_status(message_status: str) -> str:
+    if message_status == PaymentStatusMessage.STATUS_PENDING:
+        return Order.STATUS_PENDING_PAYMENT
+    if message_status == PaymentStatusMessage.STATUS_SUCCESS:
+        return Order.STATUS_PAYMENT_SUCCESSFUL
+    return Order.STATUS_PAYMENT_FAILED
+
+
+def is_allowed_payment_order_transition(current_status: str, target_status: str) -> bool:
+    return target_status in ALLOWED_PAYMENT_ORDER_TRANSITIONS.get(current_status, set())
+
+
+def _notification_recipient(order: Order) -> str:
+    if order.user and order.user.email:
+        return order.user.email
+    return order.guest_email or ""
+
+
+def _send_payment_notification_email(order: Order, *, success: bool, note: str) -> dict:
+    recipient = _notification_recipient(order)
+    if not recipient:
+        return {
+            "channel": "email",
+            "recipient": "",
+            "status": "skipped",
+            "detail": "No email recipient available.",
+        }
+
+    if success:
+        subject = "Your order payment succeeded"
+        body = f"Order #{order.id} has been paid successfully."
+    else:
+        subject = "Your order payment failed"
+        body = f"Order #{order.id} payment failed: {note}"
+
+    try:
+        delivered = send_mail(
+            subject,
+            body,
+            None,
+            [recipient],
+            fail_silently=False,
+        )
+        if delivered:
+            return {
+                "channel": "email",
+                "recipient": recipient,
+                "status": "sent",
+                "detail": "Email notification sent.",
+            }
+        logger.warning("Email backend returned 0 recipients for order=%s recipient=%s", order.id, recipient)
+        return {
+            "channel": "email",
+            "recipient": recipient,
+            "status": "failed",
+            "detail": "Email backend did not confirm delivery.",
+        }
+    except Exception:
+        logger.exception("Failed to send payment notification email for order=%s recipient=%s", order.id, recipient)
+        return {
+            "channel": "email",
+            "recipient": recipient,
+            "status": "failed",
+            "detail": "Email delivery failed.",
+        }
+
+
 def consume_payment_messages(order_id: int | None = None):
     max_attempts = 5
+    notification_results: dict[int, dict] = {}
     query = PaymentStatusMessage.objects.select_for_update().filter(consumed_at__isnull=True, dead_lettered=False)
     if order_id:
         query = query.filter(order_id=order_id)
@@ -203,49 +253,35 @@ def consume_payment_messages(order_id: int | None = None):
 
             order = msg.order
             payload = decrypt_json(msg.payload)
+            previous_status = order.status
+            target_status = map_message_status_to_order_status(msg.status)
 
+            if not is_allowed_payment_order_transition(previous_status, target_status):
+                msg.consumed_at = timezone.now()
+                msg.save(update_fields=["consumed_at"])
+                OrderStatusEvent.objects.create(
+                    order=order,
+                    status=previous_status,
+                    note=f"Ignored invalid payment transition to {target_status}",
+                )
+                continue
+
+            if previous_status == target_status:
+                msg.consumed_at = timezone.now()
+                msg.save(update_fields=["consumed_at"])
+                continue
+
+            order.status = target_status
             if msg.status == PaymentStatusMessage.STATUS_PENDING:
-                order.status = Order.STATUS_PENDING_PAYMENT
                 note = "Payment initiated"
             elif msg.status == PaymentStatusMessage.STATUS_SUCCESS:
-                order.status = Order.STATUS_PAYMENT_SUCCESSFUL
                 note = "Payment successful"
-                if order.user and order.user.email:
-                    send_mail(
-                        "Your order payment succeeded",
-                        f"Order #{order.id} has been paid successfully.",
-                        None,
-                        [order.user.email],
-                        fail_silently=True,
-                    )
-                elif order.guest_email:
-                    send_mail(
-                        "Your order payment succeeded",
-                        f"Order #{order.id} has been paid successfully.",
-                        None,
-                        [order.guest_email],
-                        fail_silently=True,
-                    )
+                notification_results[order.id] = _send_payment_notification_email(order, success=True, note=note)
             else:
-                order.status = Order.STATUS_PAYMENT_FAILED
                 note = payload.get("message", "Payment failed")
-                _restore_inventory(order)
-                if order.user and order.user.email:
-                    send_mail(
-                        "Your order payment failed",
-                        f"Order #{order.id} payment failed: {note}",
-                        None,
-                        [order.user.email],
-                        fail_silently=True,
-                    )
-                elif order.guest_email:
-                    send_mail(
-                        "Your order payment failed",
-                        f"Order #{order.id} payment failed: {note}",
-                        None,
-                        [order.guest_email],
-                        fail_silently=True,
-                    )
+                if previous_status != Order.STATUS_PAYMENT_FAILED:
+                    _restore_inventory(order)
+                notification_results[order.id] = _send_payment_notification_email(order, success=False, note=note)
 
             order.save(update_fields=["status", "updated_at"])
             OrderStatusEvent.objects.create(order=order, status=order.status, note=note)
@@ -255,6 +291,7 @@ def consume_payment_messages(order_id: int | None = None):
             if msg.attempts >= max_attempts:
                 msg.dead_lettered = True
                 msg.save(update_fields=["dead_lettered"])
+    return notification_results
 
 
 def _restore_inventory(order: Order):
@@ -270,7 +307,7 @@ def place_order_from_cart(
     shipping_option: str,
     payment_method: str,
     user=None,
-) -> tuple[Order, PaymentTransaction]:
+) -> tuple[Order, PaymentTransaction, dict]:
     items = list(cart.items.select_related("product"))
     if not items:
         raise ValueError("Cart is empty.")
@@ -332,10 +369,8 @@ def place_order_from_cart(
         encrypted_provider_payload=encrypt_json(
             {
                 "provider": payment_method,
-                "payment_token": payment_payload.get("payment_token", ""),
-                "card_last4": payment_payload.get("card_number", "")[-4:],
-                "expiry_month": payment_payload.get("expiry_month"),
-                "expiry_year": payment_payload.get("expiry_year"),
+                "tokenized": True,
+                "payment_token_hint": (payment_payload.get("payment_token", "") or "")[-8:],
             }
         ),
     )
@@ -343,10 +378,6 @@ def place_order_from_cart(
 
     result = simulate_payment(
         payment_provider=payment_method,
-        card_number=payment_payload.get("card_number", ""),
-        expiry_month=int(payment_payload["expiry_month"]) if payment_payload.get("expiry_month") else None,
-        expiry_year=int(payment_payload["expiry_year"]) if payment_payload.get("expiry_year") else None,
-        cvv=payment_payload.get("cvv", ""),
         payment_token=payment_payload.get("payment_token", ""),
     )
     if result.status == PaymentTransaction.STATUS_SUCCESS:
@@ -365,8 +396,18 @@ def place_order_from_cart(
             payload={"failure_code": result.failure_code, "message": result.message},
         )
 
-    consume_payment_messages(order_id=order.id)
+    notification_results = consume_payment_messages(order_id=order.id)
 
     cart.items.all().delete()
     order.refresh_from_db()
-    return order, transaction_obj
+    recipient = _notification_recipient(order)
+    notification = notification_results.get(
+        order.id,
+        {
+            "channel": "email",
+            "recipient": recipient,
+            "status": "queued",
+            "detail": "Notification processing pending.",
+        },
+    )
+    return order, transaction_obj, notification
