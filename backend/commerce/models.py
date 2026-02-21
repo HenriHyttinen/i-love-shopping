@@ -16,7 +16,7 @@ class Cart(models.Model):
         blank=True,
     )
     guest_token = models.CharField(max_length=64, unique=True, null=True, blank=True)
-    currency = models.CharField(max_length=8, default="USD")
+    currency = models.CharField(max_length=8, default="EUR")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

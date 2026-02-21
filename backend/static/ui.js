@@ -90,7 +90,12 @@
 
   function fmtMoney(value) {
     const n = Number(value || 0);
-    return "$" + n.toFixed(2);
+    return n.toLocaleString("fi-FI", {
+      style: "currency",
+      currency: "EUR",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   }
 
   function esc(s) {
