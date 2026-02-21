@@ -88,6 +88,36 @@
     el.textContent = text;
   }
 
+  function errorText(err) {
+    if (!err) return "Unexpected error.";
+    if (typeof err === "string") return err;
+    if (err.detail) return String(err.detail);
+    if (Array.isArray(err.non_field_errors) && err.non_field_errors.length) return String(err.non_field_errors[0]);
+    if (typeof err === "object") {
+      const firstKey = Object.keys(err)[0];
+      const firstVal = err[firstKey];
+      if (Array.isArray(firstVal) && firstVal.length) return `${firstKey}: ${firstVal[0]}`;
+      if (typeof firstVal === "string") return `${firstKey}: ${firstVal}`;
+    }
+    return "Request failed. Please retry.";
+  }
+
+  async function withBusy(btn, busyLabel, work) {
+    if (!btn) return work();
+    if (btn.dataset.busy === "1") return;
+    const originalLabel = btn.textContent;
+    btn.dataset.busy = "1";
+    btn.disabled = true;
+    if (busyLabel) btn.textContent = busyLabel;
+    try {
+      return await work();
+    } finally {
+      btn.disabled = false;
+      btn.dataset.busy = "0";
+      btn.textContent = originalLabel;
+    }
+  }
+
   function fmtMoney(value) {
     const n = Number(value || 0);
     return n.toLocaleString("fi-FI", {
@@ -117,6 +147,8 @@
     request,
     byId,
     setStatus,
+    errorText,
+    withBusy,
     fmtMoney,
     esc,
   };

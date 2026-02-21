@@ -12,8 +12,9 @@
       });
       U.setAccessToken(data.access);
       U.setStatus("orders-status", "Logged in.", "ok");
+      await loadOrders();
     } catch (err) {
-      U.setStatus("orders-status", JSON.stringify(err), "error");
+      U.setStatus("orders-status", U.errorText(err), "error");
     }
   }
 
@@ -43,15 +44,20 @@
       .join("");
 
     root.querySelectorAll("button[data-open]").forEach((btn) => {
-      btn.addEventListener("click", () => loadDetails(Number(btn.getAttribute("data-open"))));
+      btn.addEventListener("click", () =>
+        U.withBusy(btn, "Loading...", () => loadDetails(Number(btn.getAttribute("data-open"))))
+      );
     });
     root.querySelectorAll("button[data-cancel]").forEach((btn) => {
-      btn.addEventListener("click", () => cancelOrder(Number(btn.getAttribute("data-cancel"))));
+      btn.addEventListener("click", () =>
+        U.withBusy(btn, "Cancelling...", () => cancelOrder(Number(btn.getAttribute("data-cancel"))))
+      );
     });
   }
 
   async function loadOrders() {
     try {
+      U.setStatus("orders-status", "Loading orders...", "info");
       const params = new URLSearchParams();
       const status = U.byId("status").value;
       const dateFrom = U.byId("date_from").value.trim();
@@ -64,7 +70,7 @@
       renderList(list);
       U.setStatus("orders-status", list.length + " orders loaded.", "info");
     } catch (err) {
-      U.setStatus("orders-status", JSON.stringify(err), "error");
+      U.setStatus("orders-status", U.errorText(err), "error");
     }
   }
 
@@ -75,7 +81,7 @@
       renderDetails(detail);
       U.setStatus("orders-status", "Order #" + orderId + " loaded.", "info");
     } catch (err) {
-      U.setStatus("orders-status", JSON.stringify(err), "error");
+      U.setStatus("orders-status", U.errorText(err), "error");
     }
   }
 
@@ -121,14 +127,17 @@
         body: {},
       });
       U.setStatus("orders-status", data.detail || "Cancelled", "ok");
-      loadOrders();
+      await loadOrders();
     } catch (err) {
-      U.setStatus("orders-status", JSON.stringify(err), "error");
+      U.setStatus("orders-status", U.errorText(err), "error");
     }
   }
 
-  U.byId("auth-login-btn").addEventListener("click", login);
-  U.byId("load-orders-btn").addEventListener("click", loadOrders);
+  const authLoginBtn = U.byId("auth-login-btn");
+  const loadOrdersBtn = U.byId("load-orders-btn");
+
+  authLoginBtn.addEventListener("click", () => U.withBusy(authLoginBtn, "Logging in...", login));
+  loadOrdersBtn.addEventListener("click", () => U.withBusy(loadOrdersBtn, "Loading...", loadOrders));
 
   loadOrders();
 })();

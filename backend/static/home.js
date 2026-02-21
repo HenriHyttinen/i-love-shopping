@@ -65,34 +65,45 @@
 
     root.querySelectorAll("button[data-add]").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        try {
-          const productId = Number(btn.getAttribute("data-add"));
-          const qtyInput = root.querySelector(`input[data-qty="${productId}"]`);
-          const quantity = Math.max(1, Number(qtyInput ? qtyInput.value || 1 : 1));
-          await U.request(U.API + "/commerce/cart/items/", {
-            method: "POST",
-            body: { product_id: productId, quantity },
-          });
-          U.setStatus("catalog-status", "Added to cart.", "ok");
-          loadCartBadge();
-        } catch (err) {
-          U.setStatus("catalog-status", JSON.stringify(err), "error");
-        }
+        await U.withBusy(btn, "Adding...", async () => {
+          try {
+            const productId = Number(btn.getAttribute("data-add"));
+            const qtyInput = root.querySelector(`input[data-qty="${productId}"]`);
+            const quantity = Math.max(1, Number(qtyInput ? qtyInput.value || 1 : 1));
+            await U.request(U.API + "/commerce/cart/items/", {
+              method: "POST",
+              body: { product_id: productId, quantity },
+            });
+            U.setStatus("catalog-status", "Added to cart.", "ok");
+            loadCartBadge();
+          } catch (err) {
+            U.setStatus("catalog-status", U.errorText(err), "error");
+          }
+        });
       });
     });
   }
 
   async function runSearch() {
     try {
+      U.setStatus("catalog-status", "Loading products...", "info");
       const qs = buildSearchParams();
       const products = await U.request(U.API + "/catalog/products/?" + qs, { guest: false });
       renderProducts(products);
       U.byId("raw-products").textContent = JSON.stringify(products, null, 2);
       U.setStatus("catalog-status", products.length + " products loaded.", "info");
     } catch (err) {
-      U.setStatus("catalog-status", JSON.stringify(err), "error");
+      U.setStatus("catalog-status", U.errorText(err), "error");
       throw err;
     }
+  }
+
+  function debounce(fn, delayMs) {
+    let timer = null;
+    return (...args) => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => fn(...args), delayMs);
+    };
   }
 
   async function runSearchWithRetry(maxAttempts, delayMs) {
@@ -109,7 +120,16 @@
     }
   }
 
-  U.byId("search-btn").addEventListener("click", runSearch);
+  const searchBtn = U.byId("search-btn");
+  searchBtn.addEventListener("click", () => U.withBusy(searchBtn, "Searching...", runSearch));
+
+  const debouncedSearch = debounce(runSearch, 300);
+  ["search-q", "search-min", "search-max", "search-brand", "search-category", "search-order"].forEach((id) => {
+    const el = U.byId(id);
+    if (!el) return;
+    const evt = id === "search-order" ? "change" : "input";
+    el.addEventListener(evt, debouncedSearch);
+  });
 
   runSearchWithRetry(3, 900);
   loadCartBadge();

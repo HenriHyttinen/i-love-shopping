@@ -2,6 +2,7 @@
   const U = window.ShopUI;
   let stripe = null;
   let stripeCard = null;
+  let isPlacingOrder = false;
 
   const SCENARIO_TOKEN_MAP = {
     success: "tok_success",
@@ -111,7 +112,7 @@
       await syncAuthState();
       U.setStatus("checkout-status", "Logged in. Checkout is now linked to your account.", "ok");
     } catch (err) {
-      U.setStatus("checkout-status", JSON.stringify(err), "error");
+      U.setStatus("checkout-status", U.errorText(err), "error");
     }
   }
 
@@ -153,7 +154,7 @@
       U.byId("email").value = data.email || "";
       U.setStatus("checkout-status", "Prefill loaded.", "info");
     } catch (err) {
-      U.setStatus("checkout-status", JSON.stringify(err), "error");
+      U.setStatus("checkout-status", U.errorText(err), "error");
     }
   }
 
@@ -164,7 +165,7 @@
       renderSummary(data);
       U.setStatus("checkout-status", "Order summary loaded.", "info");
     } catch (err) {
-      U.setStatus("checkout-status", JSON.stringify(err), "error");
+      U.setStatus("checkout-status", U.errorText(err), "error");
     }
   }
 
@@ -213,7 +214,10 @@
   }
 
   async function placeOrder() {
+    if (isPlacingOrder) return;
+    isPlacingOrder = true;
     try {
+      U.setStatus("checkout-status", "Placing order...", "info");
       const payload = payloadFromForm();
       const bad = validate(payload);
       if (bad) {
@@ -303,15 +307,23 @@
         U.setStatus("checkout-status", "Payment successful. Order completed.", "ok");
       }
     } catch (err) {
-      U.setStatus("checkout-status", JSON.stringify(err), "error");
+      U.setStatus("checkout-status", U.errorText(err), "error");
+    } finally {
+      isPlacingOrder = false;
     }
   }
 
-  U.byId("auth-login-btn").addEventListener("click", login);
-  U.byId("auth-token-btn").addEventListener("click", useToken);
-  U.byId("prefill-btn").addEventListener("click", prefill);
-  U.byId("summary-btn").addEventListener("click", summary);
-  U.byId("place-btn").addEventListener("click", placeOrder);
+  const authLoginBtn = U.byId("auth-login-btn");
+  const authTokenBtn = U.byId("auth-token-btn");
+  const prefillBtn = U.byId("prefill-btn");
+  const summaryBtn = U.byId("summary-btn");
+  const placeBtn = U.byId("place-btn");
+
+  authLoginBtn.addEventListener("click", () => U.withBusy(authLoginBtn, "Logging in...", login));
+  authTokenBtn.addEventListener("click", useToken);
+  prefillBtn.addEventListener("click", () => U.withBusy(prefillBtn, "Loading...", prefill));
+  summaryBtn.addEventListener("click", () => U.withBusy(summaryBtn, "Loading...", summary));
+  placeBtn.addEventListener("click", () => U.withBusy(placeBtn, "Placing...", placeOrder));
   U.byId("payment_method").addEventListener("change", updatePaymentUI);
 
   summary();

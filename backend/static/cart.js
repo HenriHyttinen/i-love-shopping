@@ -1,5 +1,6 @@
 (function () {
   const U = window.ShopUI;
+  let cartRequestInFlight = false;
 
   function itemRow(item) {
     const thumb = item.thumbnail
@@ -109,15 +110,18 @@
 
   async function loadCart() {
     try {
+      U.setStatus("cart-status", "Loading cart...", "info");
       const data = await U.request(U.API + "/commerce/cart/");
       renderCart(data);
       U.setStatus("cart-status", "Cart loaded.", "info");
     } catch (err) {
-      U.setStatus("cart-status", JSON.stringify(err), "error");
+      U.setStatus("cart-status", U.errorText(err), "error");
     }
   }
 
   async function addToCart(productId, qty) {
+    if (cartRequestInFlight) return;
+    cartRequestInFlight = true;
     try {
       const data = await U.request(U.API + "/commerce/cart/items/", {
         method: "POST",
@@ -126,11 +130,15 @@
       renderCart(data);
       U.setStatus("cart-status", "Item added.", "ok");
     } catch (err) {
-      U.setStatus("cart-status", JSON.stringify(err), "error");
+      U.setStatus("cart-status", U.errorText(err), "error");
+    } finally {
+      cartRequestInFlight = false;
     }
   }
 
   async function updateItem(itemId, qty) {
+    if (cartRequestInFlight) return;
+    cartRequestInFlight = true;
     try {
       const data = await U.request(U.API + "/commerce/cart/items/" + itemId + "/", {
         method: "PATCH",
@@ -139,11 +147,15 @@
       renderCart(data);
       U.setStatus("cart-status", "Item updated.", "ok");
     } catch (err) {
-      U.setStatus("cart-status", JSON.stringify(err), "error");
+      U.setStatus("cart-status", U.errorText(err), "error");
+    } finally {
+      cartRequestInFlight = false;
     }
   }
 
   async function removeItem(itemId) {
+    if (cartRequestInFlight) return;
+    cartRequestInFlight = true;
     try {
       const data = await U.request(U.API + "/commerce/cart/items/" + itemId + "/", {
         method: "DELETE",
@@ -151,7 +163,9 @@
       renderCart(data);
       U.setStatus("cart-status", "Item removed.", "ok");
     } catch (err) {
-      U.setStatus("cart-status", JSON.stringify(err), "error");
+      U.setStatus("cart-status", U.errorText(err), "error");
+    } finally {
+      cartRequestInFlight = false;
     }
   }
 
