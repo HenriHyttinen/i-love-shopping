@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -151,6 +152,9 @@ class CommerceTests(TestCase):
         self.assertIn("notification", checkout.data)
         self.assertEqual(checkout.data["notification"]["channel"], "email")
         self.assertIn(checkout.data["notification"]["status"], {"sent", "failed", "skipped", "queued"})
+        cart_after = self.client.get("/api/commerce/cart/", HTTP_X_GUEST_CART_TOKEN=token)
+        self.assertEqual(cart_after.status_code, 200)
+        self.assertEqual(cart_after.data["item_count"], 0)
 
     def test_checkout_guest_failure_scenarios(self):
         add = self.client.post(
@@ -187,6 +191,20 @@ class CommerceTests(TestCase):
         self.assertIn("notification", checkout.data)
         self.assertEqual(checkout.data["notification"]["channel"], "email")
         self.assertIn(checkout.data["notification"]["status"], {"sent", "failed", "skipped", "queued"})
+        cart_after = self.client.get("/api/commerce/cart/", HTTP_X_GUEST_CART_TOKEN=token)
+        self.assertEqual(cart_after.status_code, 200)
+        self.assertEqual(cart_after.data["item_count"], 1)
+        first_failed_order_id = checkout.data["order"]["id"]
+
+        retry = self.client.post(
+            "/api/commerce/checkout/place-order/",
+            payload,
+            format="json",
+            HTTP_X_GUEST_CART_TOKEN=token,
+        )
+        self.assertEqual(retry.status_code, 201)
+        self.assertEqual(retry.data["payment"]["status"], "failure")
+        self.assertEqual(retry.data["order"]["id"], first_failed_order_id)
 
     def test_checkout_tokenized_payment_flow(self):
         add = self.client.post(
@@ -219,6 +237,68 @@ class CommerceTests(TestCase):
         )
         self.assertEqual(checkout.status_code, 201)
         self.assertEqual(checkout.data["payment"]["status"], "success")
+
+    def test_checkout_paypal_sandbox_flow(self):
+        add = self.client.post(
+            "/api/commerce/cart/items/",
+            {"product_id": self.product.id, "quantity": 1},
+            format="json",
+        )
+        token = add.data["guest_cart_token"]
+        payload = {
+            "full_name": "Guest Buyer",
+            "email": "guest@example.com",
+            "phone": "+358401234567",
+            "shipping_address": {
+                "line1": "Main street 1",
+                "city": "Helsinki",
+                "state": "Uusimaa",
+                "postal_code": "00100",
+                "country": "FI",
+            },
+            "shipping_option": "standard",
+            "payment_method": "paypal_sandbox",
+            "payment_token": "tok_success",
+        }
+        checkout = self.client.post(
+            "/api/commerce/checkout/place-order/",
+            payload,
+            format="json",
+            HTTP_X_GUEST_CART_TOKEN=token,
+        )
+        self.assertEqual(checkout.status_code, 201)
+        self.assertEqual(checkout.data["payment"]["status"], "success")
+
+    def test_checkout_paypal_rejects_non_tok_token(self):
+        add = self.client.post(
+            "/api/commerce/cart/items/",
+            {"product_id": self.product.id, "quantity": 1},
+            format="json",
+        )
+        token = add.data["guest_cart_token"]
+        payload = {
+            "full_name": "Guest Buyer",
+            "email": "guest@example.com",
+            "phone": "+358401234567",
+            "shipping_address": {
+                "line1": "Main street 1",
+                "city": "Helsinki",
+                "state": "Uusimaa",
+                "postal_code": "00100",
+                "country": "FI",
+            },
+            "shipping_option": "standard",
+            "payment_method": "paypal_sandbox",
+            "payment_token": "pm_test_token_123",
+        }
+        checkout = self.client.post(
+            "/api/commerce/checkout/place-order/",
+            payload,
+            format="json",
+            HTTP_X_GUEST_CART_TOKEN=token,
+        )
+        self.assertEqual(checkout.status_code, 400)
+        self.assertIn("payment_token", checkout.data)
 
     def test_checkout_prefill_for_logged_user(self):
         user = User.objects.create_user(
@@ -303,6 +383,54 @@ class CommerceTests(TestCase):
         by_date = self.client.get("/api/commerce/orders/?date_from=2100-01-01")
         self.assertEqual(by_date.status_code, 200)
         self.assertEqual(len(by_date.data), 0)
+
+    def test_order_filtering_supports_ordering(self):
+        user = User.objects.create_user(
+            email="orders-ordering@example.com",
+            password="StrongPass123!",
+            full_name="Ordering User",
+        )
+        older = Order.objects.create(
+            user=user,
+            status=Order.STATUS_PAYMENT_FAILED,
+            payment_method="stripe_sandbox",
+            shipping_option=Order.SHIPPING_STANDARD,
+            subtotal=10,
+            total=17.9,
+            shipping_cost=7.9,
+        )
+        newer = Order.objects.create(
+            user=user,
+            status=Order.STATUS_PAYMENT_SUCCESSFUL,
+            payment_method="stripe_sandbox",
+            shipping_option=Order.SHIPPING_STANDARD,
+            subtotal=10,
+            total=17.9,
+            shipping_cost=7.9,
+        )
+        Order.objects.filter(id=older.id).update(created_at=timezone.now() - timedelta(days=10))
+        Order.objects.filter(id=newer.id).update(created_at=timezone.now() - timedelta(days=1))
+
+        self.client.force_authenticate(user=user)
+        asc = self.client.get("/api/commerce/orders/?ordering=created_at")
+        self.assertEqual(asc.status_code, 200)
+        self.assertEqual(asc.data[0]["id"], older.id)
+        self.assertEqual(asc.data[-1]["id"], newer.id)
+
+        desc = self.client.get("/api/commerce/orders/?ordering=-created_at")
+        self.assertEqual(desc.status_code, 200)
+        self.assertEqual(desc.data[0]["id"], newer.id)
+
+    def test_order_filtering_rejects_invalid_ordering(self):
+        user = User.objects.create_user(
+            email="orders-invalid-ordering@example.com",
+            password="StrongPass123!",
+            full_name="Ordering User",
+        )
+        self.client.force_authenticate(user=user)
+        bad = self.client.get("/api/commerce/orders/?ordering=price")
+        self.assertEqual(bad.status_code, 400)
+        self.assertIn("Invalid ordering", bad.data["detail"])
 
     def test_cancel_unprocessed_order_restocks_inventory(self):
         user = User.objects.create_user(
@@ -450,6 +578,207 @@ class CommerceTests(TestCase):
         )
         self.assertEqual(checkout.status_code, 400)
         self.assertIn("payment_token", checkout.data)
+
+    def test_checkout_rejects_missing_required_fields(self):
+        add = self.client.post(
+            "/api/commerce/cart/items/",
+            {"product_id": self.product.id, "quantity": 1},
+            format="json",
+        )
+        token = add.data["guest_cart_token"]
+        payload = {
+            "email": "guest@example.com",
+            "phone": "+358401234567",
+            "shipping_address": {
+                "line1": "Main street 1",
+                "city": "Helsinki",
+                "state": "Uusimaa",
+                "postal_code": "00100",
+                "country": "FI",
+            },
+            "shipping_option": "standard",
+            "payment_method": "stripe_sandbox",
+            "payment_token": "tok_success",
+        }
+        checkout = self.client.post(
+            "/api/commerce/checkout/place-order/",
+            payload,
+            format="json",
+            HTTP_X_GUEST_CART_TOKEN=token,
+        )
+        self.assertEqual(checkout.status_code, 400)
+        self.assertIn("full_name", checkout.data)
+
+    def test_checkout_rejects_invalid_formats(self):
+        add = self.client.post(
+            "/api/commerce/cart/items/",
+            {"product_id": self.product.id, "quantity": 1},
+            format="json",
+        )
+        token = add.data["guest_cart_token"]
+        payload = {
+            "full_name": "Guest Buyer",
+            "email": "not-an-email",
+            "phone": "abc",
+            "shipping_address": {
+                "line1": "Main street 1",
+                "city": "Helsinki",
+                "state": "Uusimaa",
+                "postal_code": "x",
+                "country": "FI",
+            },
+            "shipping_option": "standard",
+            "payment_method": "stripe_sandbox",
+            "payment_token": "tok_success",
+        }
+        checkout = self.client.post(
+            "/api/commerce/checkout/place-order/",
+            payload,
+            format="json",
+            HTTP_X_GUEST_CART_TOKEN=token,
+        )
+        self.assertEqual(checkout.status_code, 400)
+        self.assertIn("email", checkout.data)
+
+    def test_checkout_rejects_invalid_payment_token_format(self):
+        add = self.client.post(
+            "/api/commerce/cart/items/",
+            {"product_id": self.product.id, "quantity": 1},
+            format="json",
+        )
+        token = add.data["guest_cart_token"]
+        payload = {
+            "full_name": "Guest Buyer",
+            "email": "guest@example.com",
+            "phone": "+358401234567",
+            "shipping_address": {
+                "line1": "Main street 1",
+                "city": "Helsinki",
+                "state": "Uusimaa",
+                "postal_code": "00100",
+                "country": "FI",
+            },
+            "shipping_option": "standard",
+            "payment_method": "stripe_sandbox",
+            "payment_token": "badtoken",
+        }
+        checkout = self.client.post(
+            "/api/commerce/checkout/place-order/",
+            payload,
+            format="json",
+            HTTP_X_GUEST_CART_TOKEN=token,
+        )
+        self.assertEqual(checkout.status_code, 400)
+        self.assertIn("payment_token", checkout.data)
+
+    @patch("commerce.views.place_order_from_cart", side_effect=Exception("boom"))
+    def test_checkout_returns_network_error_message_on_unexpected_exception(self, _mock_place_order):
+        add = self.client.post(
+            "/api/commerce/cart/items/",
+            {"product_id": self.product.id, "quantity": 1},
+            format="json",
+        )
+        token = add.data["guest_cart_token"]
+        payload = {
+            "full_name": "Guest Buyer",
+            "email": "guest@example.com",
+            "phone": "+358401234567",
+            "shipping_address": {
+                "line1": "Main street 1",
+                "city": "Helsinki",
+                "state": "Uusimaa",
+                "postal_code": "00100",
+                "country": "FI",
+            },
+            "shipping_option": "standard",
+            "payment_method": "stripe_sandbox",
+            "payment_token": "tok_success",
+        }
+        checkout = self.client.post(
+            "/api/commerce/checkout/place-order/",
+            payload,
+            format="json",
+            HTTP_X_GUEST_CART_TOKEN=token,
+        )
+        self.assertEqual(checkout.status_code, 502)
+        self.assertEqual(checkout.data["detail"], "Network error while processing payment. Please retry.")
+
+    @override_settings(
+        ADDRESS_VALIDATION_ENABLED=True,
+        ADDRESS_VALIDATION_STRICT=True,
+        GEOAPIFY_API_KEY="test-key",
+    )
+    @patch("commerce.address_validation.requests.get")
+    def test_checkout_rejects_unverified_shipping_address_when_validation_enabled(self, mock_get):
+        add = self.client.post(
+            "/api/commerce/cart/items/",
+            {"product_id": self.product.id, "quantity": 1},
+            format="json",
+        )
+        token = add.data["guest_cart_token"]
+        payload = {
+            "full_name": "Guest Buyer",
+            "email": "guest@example.com",
+            "phone": "+358401234567",
+            "shipping_address": {
+                "line1": "Unknown street 1",
+                "city": "Nowhere",
+                "state": "NoState",
+                "postal_code": "99999",
+                "country": "FI",
+            },
+            "shipping_option": "standard",
+            "payment_method": "stripe_sandbox",
+            "payment_token": "tok_success",
+        }
+
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {"features": []}
+
+        checkout = self.client.post(
+            "/api/commerce/checkout/place-order/",
+            payload,
+            format="json",
+            HTTP_X_GUEST_CART_TOKEN=token,
+        )
+        self.assertEqual(checkout.status_code, 400)
+        self.assertIn("shipping_address", checkout.data)
+
+    @override_settings(
+        ADDRESS_VALIDATION_ENABLED=True,
+        ADDRESS_VALIDATION_STRICT=False,
+        GEOAPIFY_API_KEY="",
+    )
+    def test_checkout_rejects_placeholder_address_without_external_validator(self):
+        add = self.client.post(
+            "/api/commerce/cart/items/",
+            {"product_id": self.product.id, "quantity": 1},
+            format="json",
+        )
+        token = add.data["guest_cart_token"]
+        payload = {
+            "full_name": "Guest Buyer",
+            "email": "guest@example.com",
+            "phone": "+358401234567",
+            "shipping_address": {
+                "line1": "Unknown",
+                "city": "Nowhere",
+                "state": "NoState",
+                "postal_code": "99999",
+                "country": "FI",
+            },
+            "shipping_option": "standard",
+            "payment_method": "stripe_sandbox",
+            "payment_token": "tok_success",
+        }
+        checkout = self.client.post(
+            "/api/commerce/checkout/place-order/",
+            payload,
+            format="json",
+            HTTP_X_GUEST_CART_TOKEN=token,
+        )
+        self.assertEqual(checkout.status_code, 400)
+        self.assertIn("shipping_address", checkout.data)
 
     def test_checkout_failure_tokens_cover_required_scenarios(self):
         failure_cases = [

@@ -38,13 +38,13 @@
 <main>
   <section class="panel">
     <h1>Checkout</h1>
-    <p class="muted">Login is optional. Logged users can prefill name/email. Guests can continue directly.</p>
-    <div class="btn-row" style="margin:6px 0 10px;">
+    <p id="checkout-auth-copy" class="muted">Login is optional. Logged users can prefill name/email. Guests can continue directly.</p>
+    <div id="checkout-login-hint" class="btn-row" style="margin:6px 0 10px;">
       <a href="/login/?next=/checkout/" class="badge" style="text-decoration:none;">Login for faster checkout</a>
       <span class="badge">or continue as guest</span>
     </div>
     <div class="cols-2">
-      <div>
+      <div id="checkout-auth-panel">
         <label>Login Email</label><input id="auth-email" type="email" placeholder="user@example.com">
         <label>Password</label><input id="auth-password" type="password" placeholder="StrongPass123!">
         <button id="auth-login-btn">Login</button>
@@ -72,6 +72,7 @@
       <div>
         <label>Sandbox payment outcome</label>
         <select id="payment_scenario">
+          <option value="">select outcome (optional)</option>
           <option value="success">success</option>
           <option value="insufficient_funds">insufficient_funds</option>
           <option value="invalid_card_number">invalid_card_number</option>

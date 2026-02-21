@@ -299,6 +299,44 @@ def _restore_inventory(order: Order):
         Product.objects.filter(id=item.product_id).update(stock_quantity=F("stock_quantity") + item.quantity)
 
 
+def _cart_item_signature(items: list[CartItem]) -> tuple[tuple[int, int, str], ...]:
+    return tuple(sorted((item.product_id, item.quantity, str(item.unit_price)) for item in items))
+
+
+def _order_item_signature(order: Order) -> tuple[tuple[int, int, str], ...]:
+    return tuple(sorted((item.product_id, item.quantity, str(item.unit_price)) for item in order.items.all()))
+
+
+def _find_retryable_failed_order(
+    *,
+    items: list[CartItem],
+    user,
+    customer_payload: dict,
+    shipping_option: str,
+    payment_method: str,
+) -> Order | None:
+    target_signature = _cart_item_signature(items)
+    if not target_signature:
+        return None
+
+    queryset = Order.objects.filter(
+        status=Order.STATUS_PAYMENT_FAILED,
+        is_processed=False,
+        shipping_option=shipping_option,
+        payment_method=payment_method,
+    ).prefetch_related("items")
+
+    if user and user.is_authenticated:
+        queryset = queryset.filter(user=user)
+    else:
+        queryset = queryset.filter(user__isnull=True, guest_email=customer_payload.get("email", ""))
+
+    for candidate in queryset.order_by("-updated_at")[:8]:
+        if _order_item_signature(candidate) == target_signature:
+            return candidate
+    return None
+
+
 @transaction.atomic
 def place_order_from_cart(
     cart: Cart,
@@ -328,52 +366,119 @@ def place_order_from_cart(
     if shipping_cost is None:
         raise ValueError("Invalid shipping option.")
 
-    order = Order.objects.create(
-        user=user if user and user.is_authenticated else None,
-        guest_email=customer_payload.get("email", ""),
-        guest_name=customer_payload.get("full_name", ""),
-        status=Order.STATUS_PENDING_PAYMENT,
-        payment_method=payment_method,
+    retry_order = _find_retryable_failed_order(
+        items=items,
+        user=user,
+        customer_payload=customer_payload,
         shipping_option=shipping_option,
-        shipping_cost=shipping_cost,
-        subtotal=subtotal,
-        total=subtotal + shipping_cost,
-        encrypted_shipping_address=encrypt_json(customer_payload.get("shipping_address", {})),
-        encrypted_order_details=encrypt_json(
+        payment_method=payment_method,
+    )
+
+    if retry_order:
+        order = retry_order
+        order.status = Order.STATUS_PENDING_PAYMENT
+        order.guest_email = customer_payload.get("email", "")
+        order.guest_name = customer_payload.get("full_name", "")
+        order.shipping_cost = shipping_cost
+        order.subtotal = subtotal
+        order.total = subtotal + shipping_cost
+        order.encrypted_shipping_address = encrypt_json(customer_payload.get("shipping_address", {}))
+        order.encrypted_order_details = encrypt_json(
             {
                 "email": customer_payload.get("email", ""),
                 "phone": customer_payload.get("phone", ""),
                 "placed_from": "authenticated" if user and user.is_authenticated else "guest",
             }
-        ),
-        tracking_code=f"TRK-{uuid.uuid4().hex[:10].upper()}",
-    )
+        )
+        order.save(
+            update_fields=[
+                "status",
+                "guest_email",
+                "guest_name",
+                "shipping_cost",
+                "subtotal",
+                "total",
+                "encrypted_shipping_address",
+                "encrypted_order_details",
+                "updated_at",
+            ]
+        )
+        OrderStatusEvent.objects.create(order=order, status=order.status, note="Payment retry initiated")
+    else:
+        order = Order.objects.create(
+            user=user if user and user.is_authenticated else None,
+            guest_email=customer_payload.get("email", ""),
+            guest_name=customer_payload.get("full_name", ""),
+            status=Order.STATUS_PENDING_PAYMENT,
+            payment_method=payment_method,
+            shipping_option=shipping_option,
+            shipping_cost=shipping_cost,
+            subtotal=subtotal,
+            total=subtotal + shipping_cost,
+            encrypted_shipping_address=encrypt_json(customer_payload.get("shipping_address", {})),
+            encrypted_order_details=encrypt_json(
+                {
+                    "email": customer_payload.get("email", ""),
+                    "phone": customer_payload.get("phone", ""),
+                    "placed_from": "authenticated" if user and user.is_authenticated else "guest",
+                }
+            ),
+            tracking_code=f"TRK-{uuid.uuid4().hex[:10].upper()}",
+        )
+
+        for item in items:
+            OrderItem.objects.create(
+                order=order,
+                product=item.product,
+                product_name=item.product.name,
+                quantity=item.quantity,
+                unit_price=item.unit_price,
+                line_total=item.unit_price * item.quantity,
+            )
 
     for item in items:
-        OrderItem.objects.create(
-            order=order,
-            product=item.product,
-            product_name=item.product.name,
-            quantity=item.quantity,
-            unit_price=item.unit_price,
-            line_total=item.unit_price * item.quantity,
-        )
         Product.objects.filter(id=item.product_id).update(stock_quantity=F("stock_quantity") - item.quantity)
 
-    transaction_obj = PaymentTransaction.objects.create(
-        order=order,
-        provider=payment_method,
-        amount=order.total,
-        status=PaymentTransaction.STATUS_PENDING,
-        external_reference=f"txn_{uuid.uuid4().hex[:16]}",
-        encrypted_provider_payload=encrypt_json(
+    if retry_order and hasattr(order, "payment_transaction"):
+        transaction_obj = order.payment_transaction
+        transaction_obj.provider = payment_method
+        transaction_obj.amount = order.total
+        transaction_obj.status = PaymentTransaction.STATUS_PENDING
+        transaction_obj.external_reference = f"txn_{uuid.uuid4().hex[:16]}"
+        transaction_obj.failure_code = ""
+        transaction_obj.encrypted_provider_payload = encrypt_json(
             {
                 "provider": payment_method,
                 "tokenized": True,
                 "payment_token_hint": (payment_payload.get("payment_token", "") or "")[-8:],
             }
-        ),
-    )
+        )
+        transaction_obj.save(
+            update_fields=[
+                "provider",
+                "amount",
+                "status",
+                "external_reference",
+                "failure_code",
+                "encrypted_provider_payload",
+                "updated_at",
+            ]
+        )
+    else:
+        transaction_obj = PaymentTransaction.objects.create(
+            order=order,
+            provider=payment_method,
+            amount=order.total,
+            status=PaymentTransaction.STATUS_PENDING,
+            external_reference=f"txn_{uuid.uuid4().hex[:16]}",
+            encrypted_provider_payload=encrypt_json(
+                {
+                    "provider": payment_method,
+                    "tokenized": True,
+                    "payment_token_hint": (payment_payload.get("payment_token", "") or "")[-8:],
+                }
+            ),
+        )
     publish_payment_message(order=order, status=PaymentStatusMessage.STATUS_PENDING, transaction=transaction_obj)
 
     result = simulate_payment(
@@ -398,7 +503,8 @@ def place_order_from_cart(
 
     notification_results = consume_payment_messages(order_id=order.id)
 
-    cart.items.all().delete()
+    if transaction_obj.status == PaymentTransaction.STATUS_SUCCESS:
+        cart.items.all().delete()
     order.refresh_from_db()
     recipient = _notification_recipient(order)
     notification = notification_results.get(

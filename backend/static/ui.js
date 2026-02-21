@@ -2,12 +2,20 @@
   const GUEST_KEY = "guest_cart_token";
   const ACCESS_KEY = "shop_access_token";
 
-  let accessToken = sessionStorage.getItem(ACCESS_KEY) || "";
+  // Keep auth state shared across pages/tabs. Migrate old session token once.
+  const migratedSessionToken = sessionStorage.getItem(ACCESS_KEY) || "";
+  let accessToken = localStorage.getItem(ACCESS_KEY) || migratedSessionToken;
+  if (migratedSessionToken && !localStorage.getItem(ACCESS_KEY)) {
+    localStorage.setItem(ACCESS_KEY, migratedSessionToken);
+  }
+  if (migratedSessionToken) {
+    sessionStorage.removeItem(ACCESS_KEY);
+  }
 
   function setAccessToken(token) {
     accessToken = token || "";
-    if (accessToken) sessionStorage.setItem(ACCESS_KEY, accessToken);
-    else sessionStorage.removeItem(ACCESS_KEY);
+    if (accessToken) localStorage.setItem(ACCESS_KEY, accessToken);
+    else localStorage.removeItem(ACCESS_KEY);
   }
 
   function getAccessToken() {

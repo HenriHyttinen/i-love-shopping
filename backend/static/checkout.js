@@ -17,6 +17,14 @@
     "4000000000000069": "tok_fail_expired_card",
     "4000000000000127": "tok_fail_gateway_timeout",
   };
+  const FAILURE_MESSAGES = {
+    insufficient_funds: "Payment failed: insufficient funds.",
+    invalid_card_number: "Payment failed: card was declined.",
+    expired_card: "Payment failed: card has expired.",
+    gateway_timeout: "Payment failed: gateway timeout, please retry.",
+    invalid_payment_token: "Payment failed: invalid payment token.",
+    unsupported_provider: "Payment failed: unsupported payment provider.",
+  };
 
   function payloadFromForm() {
     return {
@@ -97,9 +105,33 @@
         body: { email, password },
       });
       U.setAccessToken(data.access);
-      U.setStatus("checkout-status", "Logged in. Use prefill now.", "ok");
+      if (window.ShopAuth) await window.ShopAuth.refreshAuthNav();
+      await prefill();
+      await summary();
+      await syncAuthState();
+      U.setStatus("checkout-status", "Logged in. Checkout is now linked to your account.", "ok");
     } catch (err) {
       U.setStatus("checkout-status", JSON.stringify(err), "error");
+    }
+  }
+
+  async function syncAuthState() {
+    const authPanel = U.byId("checkout-auth-panel");
+    const loginHint = U.byId("checkout-login-hint");
+    const authCopy = U.byId("checkout-auth-copy");
+    const user = await U.fetchCurrentUser();
+    const isAuth = !!user;
+
+    if (authPanel) authPanel.style.display = isAuth ? "none" : "block";
+    if (loginHint) loginHint.style.display = isAuth ? "none" : "flex";
+    if (authCopy) {
+      authCopy.textContent = isAuth
+        ? `Signed in as ${user.full_name || user.email}.`
+        : "Login is optional. Logged users can prefill name/email. Guests can continue directly.";
+    }
+
+    if (isAuth) {
+      await prefill();
     }
   }
 
@@ -110,6 +142,7 @@
       return;
     }
     U.setAccessToken(token);
+    syncAuthState();
     U.setStatus("checkout-status", "Access token loaded.", "ok");
   }
 
@@ -170,7 +203,7 @@
 
   function scenarioToken() {
     const selected = U.byId("payment_scenario").value;
-    return SCENARIO_TOKEN_MAP[selected] || SCENARIO_TOKEN_MAP.success;
+    return SCENARIO_TOKEN_MAP[selected] || "";
   }
 
   function updatePaymentUI() {
@@ -201,6 +234,7 @@
         payload.payment_token = pm.paymentMethod.id;
       } else if (!payload.payment_token) {
         const card = cardInput();
+        const hasCardInput = !!(card.number || card.month || card.year || card.cvv);
         const cardIssue = validateCardInput(card);
         if (cardIssue) {
           U.setStatus("checkout-status", cardIssue, "warn");
@@ -210,6 +244,14 @@
           payload.payment_token = CARD_FAILURE_TOKEN_MAP[card.number] || "tok_success";
         } else {
           payload.payment_token = scenarioToken();
+          if (!payload.payment_token && !hasCardInput) {
+            U.setStatus(
+              "checkout-status",
+              "Provide payment info: enter card details, paste a payment token, or choose a sandbox outcome.",
+              "warn"
+            );
+            return;
+          }
         }
       }
 
@@ -238,17 +280,27 @@
       const notifyRecipient = notification.recipient ? ` to ${U.esc(notification.recipient)}` : "";
       const notifyDetail = notification.detail ? U.esc(notification.detail) : "Notification status pending.";
       const notifyClass = notifyState === "sent" ? "ok" : (notifyState === "failed" ? "error" : "info");
+      const paymentOk = data.payment && data.payment.status === "success";
+      const paymentClass = paymentOk ? "ok" : "error";
+      const paymentText = paymentOk ? "successful" : "failed";
+      const failureCode = (data.payment && data.payment.failure_code) || "";
+      const failureText = failureCode
+        ? (FAILURE_MESSAGES[failureCode] || `Payment failed: ${failureCode}.`)
+        : "Payment failed.";
       U.byId("checkout-json").textContent = JSON.stringify(data, null, 2);
       U.byId("confirm").innerHTML = `
         <h3>Order Confirmation</h3>
-        <div class="status ok">Order #${data.order.id} is ${data.order.status}. Payment ${data.payment.status}.</div>
+        <div class="status ${paymentClass}">Order #${data.order.id} is ${data.order.status}. Payment ${paymentText}.</div>
+        ${paymentOk ? "" : `<div class=\"status error\">${U.esc(failureText)}</div>`}
         <div class="status ${notifyClass}">Notification: ${U.esc(notifyState)}${notifyRecipient}. ${notifyDetail}</div>
         <p class="footer-note">Tracking: ${U.esc(data.order.tracking_code || "")}</p>
       `;
-      if (notifyState === "failed") {
-        U.setStatus("checkout-status", "Checkout completed, but email notification failed.", "warn");
+      if (!paymentOk) {
+        U.setStatus("checkout-status", `${failureText} Cart items were kept so you can retry.`, "warn");
+      } else if (notifyState === "failed") {
+        U.setStatus("checkout-status", "Payment successful, but email notification failed.", "warn");
       } else {
-        U.setStatus("checkout-status", "Checkout completed.", "ok");
+        U.setStatus("checkout-status", "Payment successful. Order completed.", "ok");
       }
     } catch (err) {
       U.setStatus("checkout-status", JSON.stringify(err), "error");
@@ -265,4 +317,6 @@
   summary();
   updatePaymentUI();
   initStripe();
+  if (window.ShopAuth) window.ShopAuth.refreshAuthNav();
+  syncAuthState();
 })();

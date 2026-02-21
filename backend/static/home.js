@@ -1,6 +1,13 @@
 (function () {
   const U = window.ShopUI;
 
+  function ratingMarkup(value) {
+    const numeric = Math.max(0, Math.min(5, Number(value || 0)));
+    const rounded = Math.round(numeric);
+    const stars = "★".repeat(rounded) + "☆".repeat(Math.max(0, 5 - rounded));
+    return `<div class="muted" aria-label="Average rating ${numeric.toFixed(1)} out of 5">${stars} ${numeric.toFixed(1)}/5</div>`;
+  }
+
   function buildSearchParams() {
     const params = new URLSearchParams();
     const q = U.byId("search-q").value.trim();
@@ -44,6 +51,7 @@
             ${imgUrl ? `<img src="${U.esc(imgUrl)}" alt="${U.esc(p.name)}">` : ""}
             <h3>${U.esc(p.name)}</h3>
             <div class="muted">${U.esc(p.brand.name)} • ${U.esc(p.category.name)}</div>
+            ${ratingMarkup(p.rating)}
             <div style="margin:8px 0"><span class="badge">Stock ${p.stock_quantity}</span></div>
             <div style="font-weight:700; margin-bottom:8px">${U.fmtMoney(p.price)}</div>
             <div class="grid" style="grid-template-columns: 1fr 120px;">

@@ -1,3 +1,5 @@
+import logging
+
 from django.db import models, transaction
 from django.db.models import Prefetch
 from django.utils.dateparse import parse_date
@@ -25,6 +27,8 @@ from .services import (
     publish_payment_message,
     recommended_products,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class CartView(APIView):
@@ -192,6 +196,7 @@ class CheckoutPlaceOrderView(APIView):
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=400)
         except Exception:
+            logger.exception("Checkout place-order failed unexpectedly")
             return Response(
                 {"detail": "Network error while processing payment. Please retry."},
                 status=502,
@@ -222,6 +227,7 @@ class OrderListView(APIView):
         status_filter = request.query_params.get("status", "").strip()
         date_from = request.query_params.get("date_from", "").strip()
         date_to = request.query_params.get("date_to", "").strip()
+        ordering = request.query_params.get("ordering", "").strip()
 
         if status_filter:
             queryset = queryset.filter(status=status_filter)
@@ -237,6 +243,12 @@ class OrderListView(APIView):
             if not parsed:
                 return Response({"detail": "Invalid date_to format. Use YYYY-MM-DD."}, status=400)
             queryset = queryset.filter(created_at__date__lte=parsed)
+
+        if ordering:
+            allowed_ordering = {"created_at", "-created_at", "status", "-status"}
+            if ordering not in allowed_ordering:
+                return Response({"detail": "Invalid ordering. Use created_at, -created_at, status, or -status."}, status=400)
+            queryset = queryset.order_by(ordering, "-id")
 
         return Response(OrderSerializer(queryset, many=True).data)
 

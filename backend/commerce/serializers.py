@@ -2,6 +2,7 @@ import re
 
 from rest_framework import serializers
 
+from .address_validation import validate_shipping_address_accuracy
 from .crypto import decrypt_json
 from .models import Order
 
@@ -50,6 +51,10 @@ class CheckoutSerializer(serializers.Serializer):
         postal_code = str(value.get("postal_code", "")).strip()
         if not POSTAL_RE.match(postal_code):
             raise serializers.ValidationError("Invalid address format for postal_code.")
+
+        accuracy = validate_shipping_address_accuracy(value)
+        if not accuracy.ok:
+            raise serializers.ValidationError(accuracy.detail)
         return value
 
     def validate(self, attrs):

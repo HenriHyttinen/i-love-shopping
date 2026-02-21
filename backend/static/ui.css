@@ -137,6 +137,24 @@ button {
   background: linear-gradient(135deg, var(--accent), #4ea0ff);
 }
 
+.btn-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 140px;
+  padding: 10px 11px;
+  border-radius: 10px;
+  border: none;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), #4ea0ff);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.btn-link:hover {
+  background: linear-gradient(135deg, var(--accent-strong), #3f8fe8);
+}
+
 button.secondary {
   color: var(--ink);
   background: var(--surface-2);
@@ -156,6 +174,10 @@ button.danger {
 .btn-row > button {
   width: auto;
   min-width: 140px;
+}
+
+.btn-row > .btn-link {
+  width: auto;
 }
 
 .status {
@@ -233,5 +255,6 @@ button.danger {
 
 @media (max-width: 700px) {
   .btn-row > button { width: 100%; }
+  .btn-row > .btn-link { width: 100%; }
   h1 { font-size: 22px; }
 }
