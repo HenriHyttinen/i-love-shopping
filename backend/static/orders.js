@@ -1,5 +1,6 @@
 (function () {
   const U = window.ShopUI;
+  let selectedOrderId = null;
 
   async function syncAuthState() {
     const authPanel = U.byId("orders-auth-panel");
@@ -100,6 +101,7 @@
 
   async function loadDetails(orderId) {
     try {
+      selectedOrderId = orderId;
       const detail = await U.request(U.API + "/commerce/orders/" + orderId + "/", { auth: true });
       U.byId("orders-json").textContent = JSON.stringify(detail, null, 2);
       renderDetails(detail);
@@ -152,6 +154,9 @@
       });
       U.setStatus("orders-status", data.detail || "Cancelled", "ok");
       await loadOrders();
+      if (selectedOrderId === orderId) {
+        await loadDetails(orderId);
+      }
     } catch (err) {
       U.setStatus("orders-status", U.errorText(err), "error");
     }
