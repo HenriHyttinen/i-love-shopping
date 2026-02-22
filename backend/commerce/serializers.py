@@ -12,7 +12,7 @@ POSTAL_RE = re.compile(r"^[A-Za-z0-9\-\s]{3,12}$")
 
 
 class CartItemMutationSerializer(serializers.Serializer):
-    product_id = serializers.IntegerField(required=True)
+    product_id = serializers.IntegerField(min_value=1, required=True)
     quantity = serializers.IntegerField(min_value=1, max_value=99, required=True)
 
 

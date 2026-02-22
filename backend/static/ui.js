@@ -27,9 +27,8 @@
   }
 
   function setGuestToken(token) {
-    if (token) {
-      localStorage.setItem(GUEST_KEY, token);
-    }
+    if (token) localStorage.setItem(GUEST_KEY, token);
+    else localStorage.removeItem(GUEST_KEY);
   }
 
   async function fetchCurrentUser() {
@@ -71,7 +70,9 @@
     }
 
     const data = await res.json().catch(() => ({}));
-    if (data && data.guest_cart_token) setGuestToken(data.guest_cart_token);
+    if (data && Object.prototype.hasOwnProperty.call(data, "guest_cart_token")) {
+      setGuestToken(data.guest_cart_token);
+    }
 
     if (!res.ok) throw data;
     return data;

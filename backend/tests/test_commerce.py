@@ -87,6 +87,17 @@ class CommerceTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
+    def test_cart_rejects_non_positive_product_id(self):
+        for invalid_id in (0, -1):
+            with self.subTest(product_id=invalid_id):
+                response = self.client.post(
+                    "/api/commerce/cart/items/",
+                    {"product_id": invalid_id, "quantity": 1},
+                    format="json",
+                )
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("product_id", response.data)
+
     def test_recommended_products_fallback_when_no_related_matches(self):
         unique_category = Category.objects.create(name="Cases", slug="cases")
         unique_brand = Brand.objects.create(name="CaseBrand")

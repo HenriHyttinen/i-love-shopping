@@ -111,7 +111,7 @@
   async function loadCart() {
     try {
       U.setStatus("cart-status", "Loading cart...", "info");
-      const data = await U.request(U.API + "/commerce/cart/");
+      const data = await U.request(U.API + "/commerce/cart/", { auth: true });
       renderCart(data);
       U.setStatus("cart-status", "Cart loaded.", "info");
     } catch (err) {
@@ -125,6 +125,7 @@
     try {
       const data = await U.request(U.API + "/commerce/cart/items/", {
         method: "POST",
+        auth: true,
         body: { product_id: productId, quantity: qty },
       });
       renderCart(data);
@@ -142,6 +143,7 @@
     try {
       const data = await U.request(U.API + "/commerce/cart/items/" + itemId + "/", {
         method: "PATCH",
+        auth: true,
         body: { quantity: qty },
       });
       renderCart(data);
@@ -159,6 +161,7 @@
     try {
       const data = await U.request(U.API + "/commerce/cart/items/" + itemId + "/", {
         method: "DELETE",
+        auth: true,
       });
       renderCart(data);
       U.setStatus("cart-status", "Item removed.", "ok");

@@ -28,7 +28,7 @@
 
   async function loadCartBadge() {
     try {
-      const data = await U.request(U.API + "/commerce/cart/");
+      const data = await U.request(U.API + "/commerce/cart/", { auth: true });
       U.byId("cart-badge").textContent = data.item_count + " items";
     } catch (_) {
       U.byId("cart-badge").textContent = "0 items";
@@ -72,6 +72,7 @@
             const quantity = Math.max(1, Number(qtyInput ? qtyInput.value || 1 : 1));
             await U.request(U.API + "/commerce/cart/items/", {
               method: "POST",
+              auth: true,
               body: { product_id: productId, quantity },
             });
             U.setStatus("catalog-status", "Added to cart.", "ok");
