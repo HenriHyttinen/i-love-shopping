@@ -38,13 +38,13 @@
 <main>
   <section class="panel">
     <h1>Checkout</h1>
-    <p id="checkout-auth-copy" class="muted">Login is optional. Logged users can prefill name/email. Guests can continue directly.</p>
-    <div id="checkout-login-hint" class="btn-row" style="margin:6px 0 10px;">
+    <p id="checkout-auth-copy" class="muted">Checking account status...</p>
+    <div id="checkout-login-hint" class="btn-row" style="margin:6px 0 10px; display:none;">
       <a href="/login/?next=/checkout/" class="badge" style="text-decoration:none;">Login for faster checkout</a>
       <span class="badge">or continue as guest</span>
     </div>
     <div class="cols-2">
-      <div id="checkout-auth-panel">
+      <div id="checkout-auth-panel" style="display:none;">
         <label>Login Email</label><input id="auth-email" type="email" placeholder="user@example.com">
         <label>Password</label><input id="auth-password" type="password" placeholder="StrongPass123!">
         <button id="auth-login-btn">Login</button>

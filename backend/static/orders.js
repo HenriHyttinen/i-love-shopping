@@ -1,6 +1,21 @@
 (function () {
   const U = window.ShopUI;
 
+  async function syncAuthState() {
+    const authPanel = U.byId("orders-auth-panel");
+    const authCopy = U.byId("orders-auth-copy");
+    const user = await U.fetchCurrentUser();
+    const isAuth = !!user;
+
+    if (authPanel) authPanel.style.display = isAuth ? "none" : "block";
+    if (authCopy) {
+      authCopy.textContent = isAuth
+        ? `Signed in as ${user.full_name || user.email}.`
+        : "Login to view and manage your orders.";
+    }
+    return isAuth;
+  }
+
   async function login() {
     try {
       const email = U.byId("auth-email").value.trim();
@@ -11,6 +26,8 @@
         body: { email, password },
       });
       U.setAccessToken(data.access);
+      if (window.ShopAuth) await window.ShopAuth.refreshAuthNav();
+      await syncAuthState();
       U.setStatus("orders-status", "Logged in.", "ok");
       await loadOrders();
     } catch (err) {
@@ -57,6 +74,13 @@
 
   async function loadOrders() {
     try {
+      const isAuth = await syncAuthState();
+      if (!isAuth) {
+        U.byId("orders-list").innerHTML = "<div class='muted'>Login required to load orders.</div>";
+        U.byId("orders-json").textContent = "[]";
+        U.setStatus("orders-status", "Login required to view orders.", "warn");
+        return;
+      }
       U.setStatus("orders-status", "Loading orders...", "info");
       const params = new URLSearchParams();
       const status = U.byId("status").value;
@@ -139,5 +163,12 @@
   authLoginBtn.addEventListener("click", () => U.withBusy(authLoginBtn, "Logging in...", login));
   loadOrdersBtn.addEventListener("click", () => U.withBusy(loadOrdersBtn, "Loading...", loadOrders));
 
-  loadOrders();
+  (async function init() {
+    const isAuth = await syncAuthState();
+    if (isAuth) {
+      await loadOrders();
+    } else {
+      U.setStatus("orders-status", "Login required to view orders.", "warn");
+    }
+  })();
 })();
