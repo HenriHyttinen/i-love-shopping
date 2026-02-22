@@ -1,6 +1,9 @@
 (function () {
   const U = window.ShopUI;
   let cartRequestInFlight = false;
+  const pendingQtyUpdates = new Map();
+  const pendingQtyTimers = new Map();
+  const AUTO_UPDATE_DELAY_MS = 350;
 
   function itemRow(item) {
     const thumb = item.thumbnail
@@ -69,6 +72,7 @@
         if (!input) return;
         const next = Math.max(0, Number(input.value || 0) - 1);
         input.value = next;
+        queueAutoUpdate(id, next);
       });
     });
 
@@ -77,7 +81,18 @@
         const id = Number(btn.getAttribute("data-inc"));
         const input = document.querySelector(`input[data-qty-input="${id}"]`);
         if (!input) return;
-        input.value = Number(input.value || 0) + 1;
+        const next = Number(input.value || 0) + 1;
+        input.value = next;
+        queueAutoUpdate(id, next);
+      });
+    });
+
+    document.querySelectorAll("input[data-qty-input]").forEach((input) => {
+      input.addEventListener("input", () => {
+        const id = Number(input.getAttribute("data-qty-input"));
+        const qty = Number(input.value);
+        if (Number.isNaN(qty) || qty < 0) return;
+        queueAutoUpdate(id, qty);
       });
     });
 
@@ -87,6 +102,7 @@
         const input = document.querySelector(`input[data-qty-input="${id}"]`);
         const qty = input ? Number(input.value) : 0;
         if (Number.isNaN(qty) || qty < 0) return;
+        clearQueuedUpdate(id);
         await updateItem(id, qty);
       });
     });
@@ -94,6 +110,7 @@
     document.querySelectorAll("button[data-del]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const id = Number(btn.getAttribute("data-del"));
+        clearQueuedUpdate(id);
         await removeItem(id);
       });
     });
@@ -152,7 +169,35 @@
       U.setStatus("cart-status", U.errorText(err), "error");
     } finally {
       cartRequestInFlight = false;
+      drainQueuedUpdates();
     }
+  }
+
+  function queueAutoUpdate(itemId, qty) {
+    pendingQtyUpdates.set(itemId, qty);
+    if (pendingQtyTimers.has(itemId)) {
+      clearTimeout(pendingQtyTimers.get(itemId));
+    }
+    const timer = setTimeout(() => {
+      pendingQtyTimers.delete(itemId);
+      drainQueuedUpdates();
+    }, AUTO_UPDATE_DELAY_MS);
+    pendingQtyTimers.set(itemId, timer);
+  }
+
+  function clearQueuedUpdate(itemId) {
+    pendingQtyUpdates.delete(itemId);
+    if (pendingQtyTimers.has(itemId)) {
+      clearTimeout(pendingQtyTimers.get(itemId));
+      pendingQtyTimers.delete(itemId);
+    }
+  }
+
+  function drainQueuedUpdates() {
+    if (cartRequestInFlight || pendingQtyUpdates.size === 0) return;
+    const [itemId, qty] = pendingQtyUpdates.entries().next().value;
+    pendingQtyUpdates.delete(itemId);
+    updateItem(itemId, qty);
   }
 
   async function removeItem(itemId) {
