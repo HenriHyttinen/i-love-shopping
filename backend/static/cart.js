@@ -11,8 +11,8 @@
       : `<div style="width:44px;height:44px;border-radius:8px;border:1px solid #1f2937;display:grid;place-items:center;color:#9ca3af;">N/A</div>`;
     return `
       <tr>
-        <td><div class="btn-row" style="gap:8px;align-items:center;">${thumb}<span>#${item.id}</span></div></td>
-        <td>${U.esc(item.name)}</td>
+        <td><div class="btn-row" style="gap:8px;align-items:center;">${thumb}<span>Item #${item.id}</span></div></td>
+        <td>${U.esc(item.name)}<div class="muted">Product #${item.product_id}</div></td>
         <td>${U.fmtMoney(item.price)}</td>
         <td>
           <div class="btn-row" style="gap:6px;">
