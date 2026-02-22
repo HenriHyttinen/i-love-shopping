@@ -229,8 +229,13 @@ def _send_payment_notification_email(order: Order, *, success: bool, note: str) 
             "status": "failed",
             "detail": "Email backend did not confirm delivery.",
         }
-    except Exception:
-        logger.exception("Failed to send payment notification email for order=%s recipient=%s", order.id, recipient)
+    except Exception as exc:
+        logger.exception(
+            "Failed to send payment notification email for order=%s recipient=%s error=%s",
+            order.id,
+            recipient,
+            exc.__class__.__name__,
+        )
         return {
             "channel": "email",
             "recipient": recipient,
@@ -276,12 +281,30 @@ def consume_payment_messages(order_id: int | None = None):
                 note = "Payment initiated"
             elif msg.status == PaymentStatusMessage.STATUS_SUCCESS:
                 note = "Payment successful"
-                notification_results[order.id] = _send_payment_notification_email(order, success=True, note=note)
+                notification = _send_payment_notification_email(order, success=True, note=note)
+                notification_results[order.id] = notification
+                if notification.get("status") != "sent":
+                    logger.warning(
+                        "Payment succeeded but notification failed for order=%s status=%s detail=%s recipient=%s",
+                        order.id,
+                        notification.get("status", "unknown"),
+                        notification.get("detail", ""),
+                        notification.get("recipient", ""),
+                    )
             else:
                 note = payload.get("message", "Payment failed")
                 if previous_status != Order.STATUS_PAYMENT_FAILED:
                     _restore_inventory(order)
-                notification_results[order.id] = _send_payment_notification_email(order, success=False, note=note)
+                notification = _send_payment_notification_email(order, success=False, note=note)
+                notification_results[order.id] = notification
+                if notification.get("status") != "sent":
+                    logger.info(
+                        "Payment failed and notification was not sent for order=%s status=%s detail=%s recipient=%s",
+                        order.id,
+                        notification.get("status", "unknown"),
+                        notification.get("detail", ""),
+                        notification.get("recipient", ""),
+                    )
 
             order.save(update_fields=["status", "updated_at"])
             OrderStatusEvent.objects.create(order=order, status=order.status, note=note)
