@@ -17,11 +17,11 @@
         <td>
           <div class="btn-row" style="gap:6px;">
             <button class="secondary" data-dec="${item.id}">-</button>
-            <input data-qty-input="${item.id}" type="number" min="0" value="${item.quantity}" style="width:70px;">
+            <input data-qty-input="${item.id}" data-price="${item.price}" type="number" min="0" value="${item.quantity}" style="width:70px;">
             <button class="secondary" data-inc="${item.id}">+</button>
           </div>
         </td>
-        <td>${U.fmtMoney(item.line_total)}</td>
+        <td data-line-total="${item.id}">${U.fmtMoney(item.line_total)}</td>
         <td>
           <div class="btn-row">
             <button class="secondary" data-edit="${item.id}">Update</button>
@@ -72,6 +72,7 @@
         if (!input) return;
         const next = Math.max(0, Number(input.value || 0) - 1);
         input.value = next;
+        refreshPendingTotals(id, next);
         queueAutoUpdate(id, next);
       });
     });
@@ -83,6 +84,7 @@
         if (!input) return;
         const next = Number(input.value || 0) + 1;
         input.value = next;
+        refreshPendingTotals(id, next);
         queueAutoUpdate(id, next);
       });
     });
@@ -92,6 +94,7 @@
         const id = Number(input.getAttribute("data-qty-input"));
         const qty = Number(input.value);
         if (Number.isNaN(qty) || qty < 0) return;
+        refreshPendingTotals(id, qty);
         queueAutoUpdate(id, qty);
       });
     });
@@ -198,6 +201,29 @@
     const [itemId, qty] = pendingQtyUpdates.entries().next().value;
     pendingQtyUpdates.delete(itemId);
     updateItem(itemId, qty);
+  }
+
+  function refreshPendingTotals(itemId, qty) {
+    const lineCell = document.querySelector(`td[data-line-total="${itemId}"]`);
+    const input = document.querySelector(`input[data-qty-input="${itemId}"]`);
+    if (!lineCell || !input) return;
+    const price = Number(input.getAttribute("data-price") || 0);
+    const safeQty = Math.max(0, Number(qty) || 0);
+    const lineTotal = price * safeQty;
+    lineCell.textContent = U.fmtMoney(lineTotal);
+    refreshPendingSubtotal();
+  }
+
+  function refreshPendingSubtotal() {
+    let subtotal = 0;
+    let itemCount = 0;
+    document.querySelectorAll("input[data-qty-input]").forEach((input) => {
+      const qty = Math.max(0, Number(input.value) || 0);
+      const price = Number(input.getAttribute("data-price") || 0);
+      subtotal += price * qty;
+      if (qty > 0) itemCount += 1;
+    });
+    U.byId("totals").textContent = `${itemCount} items • subtotal ${U.fmtMoney(subtotal)}`;
   }
 
   async function removeItem(itemId) {

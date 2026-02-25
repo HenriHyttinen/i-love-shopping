@@ -5,6 +5,7 @@ This is the Commerce part of my fullstack e-commerce project for the advanced fu
 
 In this part I focused on:
 - guest and logged-in carts
+- real-time cart quantity updates with instant subtotal recalculation
 - single-page checkout
 - payment simulation with success/failure scenarios
 - order management (status updates, filtering, cancellation)
@@ -146,6 +147,10 @@ cp backend/envtemplate.txt backend/.env
 - `GOOGLE_OAUTH_CLIENT_SECRET`
 - `RECAPTCHA_SECRET_KEY`
 - `COMMERCE_ENCRYPTION_KEY` (recommended)
+- `GEOAPIFY_API_KEY` (recommended for strict shipping address verification)
+- optional: `ADDRESS_VALIDATION_ENABLED` (default `1`)
+- optional: `ADDRESS_VALIDATION_STRICT` (`1` = fail closed if validator is unavailable)
+- optional: `ADDRESS_VALIDATION_MIN_CONFIDENCE` (default `0.75`)
 - optional: `STRIPE_PUBLISHABLE_KEY`
 - optional: `PAYMENT_CALLBACK_SECRET`
 3. Start:
@@ -181,6 +186,7 @@ python manage.py runserver
 - Logged-in users get prefill from `/api/commerce/checkout/prefill/`.
 - Order summary is available via `/api/commerce/checkout/summary/`.
 - Raw card data is never sent to backend.
+- Shipping address is validated against city/state/postal/country consistency.
 
 For review, payment outcomes are deterministic through `tok_*` sandbox tokens.
 
@@ -201,7 +207,11 @@ Local sandbox card-to-token mapping (when Stripe Element is not used):
 For test cards, use:
 - any future expiry
 - any 3-digit CVC
-- any ZIP/postal code
+- valid ZIP/postal code matching city/state and country
+
+### Cart Behavior
+- Cart page updates line totals and subtotal in real time when quantity changes.
+- Quantity updates are still synced to backend immediately after (debounced), so server remains source of truth.
 
 ### Commerce API Quick Map
 Cart:
@@ -257,6 +267,17 @@ In Google Cloud Console configure:
 Set in `backend/.env`:
 - `RECAPTCHA_SITE_KEY`
 - `RECAPTCHA_SECRET_KEY`
+
+### Shipping Address Validation (Geoapify)
+Set in `backend/.env`:
+- `GEOAPIFY_API_KEY=...`
+- `ADDRESS_VALIDATION_ENABLED=1`
+- `ADDRESS_VALIDATION_STRICT=1`
+- `ADDRESS_VALIDATION_MIN_CONFIDENCE=0.75`
+
+Notes:
+- With `ADDRESS_VALIDATION_STRICT=1`, checkout is blocked if the address validation service is unavailable.
+- With `ADDRESS_VALIDATION_STRICT=0`, checkout falls back to local sanity checks if the external validator is unavailable.
 
 ### SMTP (password reset + checkout notifications)
 ```env

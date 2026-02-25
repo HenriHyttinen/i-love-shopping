@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from datetime import timedelta
 
@@ -178,6 +179,11 @@ ADDRESS_VALIDATION_MIN_CONFIDENCE = float(os.getenv("ADDRESS_VALIDATION_MIN_CONF
 COMMERCE_ENCRYPTION_KEY = os.getenv("COMMERCE_ENCRYPTION_KEY", "")
 STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
 PAYMENT_CALLBACK_SECRET = os.getenv("PAYMENT_CALLBACK_SECRET", "")
+
+# Keep test runs deterministic even if local .env enables strict external validation.
+if "test" in sys.argv:
+    GEOAPIFY_API_KEY = ""
+    ADDRESS_VALIDATION_STRICT = False
 
 SOCIALACCOUNT_PROVIDERS = {
     "google": {

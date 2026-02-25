@@ -139,7 +139,7 @@
   }
 
   window.ShopUI = {
-    API: "http://localhost:8000/api",
+    API: "/api",
     setAccessToken,
     getAccessToken,
     getGuestToken,

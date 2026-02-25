@@ -791,6 +791,129 @@ class CommerceTests(TestCase):
         self.assertEqual(checkout.status_code, 400)
         self.assertIn("shipping_address", checkout.data)
 
+    @override_settings(
+        ADDRESS_VALIDATION_ENABLED=True,
+        ADDRESS_VALIDATION_STRICT=False,
+        GEOAPIFY_API_KEY="",
+    )
+    def test_checkout_rejects_us_state_zip_region_mismatch_without_external_validator(self):
+        add = self.client.post(
+            "/api/commerce/cart/items/",
+            {"product_id": self.product.id, "quantity": 1},
+            format="json",
+        )
+        token = add.data["guest_cart_token"]
+        payload = {
+            "full_name": "Guest Buyer",
+            "email": "guest@example.com",
+            "phone": "+14085550123",
+            "shipping_address": {
+                "line1": "350 Fifth Avenue",
+                "city": "New York",
+                "state": "CA",
+                "postal_code": "10001",
+                "country": "US",
+            },
+            "shipping_option": "standard",
+            "payment_method": "stripe_sandbox",
+            "payment_token": "tok_success",
+        }
+        checkout = self.client.post(
+            "/api/commerce/checkout/place-order/",
+            payload,
+            format="json",
+            HTTP_X_GUEST_CART_TOKEN=token,
+        )
+        self.assertEqual(checkout.status_code, 400)
+        self.assertIn("shipping_address", checkout.data)
+
+    @override_settings(
+        ADDRESS_VALIDATION_ENABLED=True,
+        ADDRESS_VALIDATION_STRICT=False,
+        GEOAPIFY_API_KEY="",
+    )
+    @patch("commerce.address_validation.requests.get")
+    def test_checkout_rejects_us_city_zip_mismatch_using_zip_lookup(self, mock_get):
+        add = self.client.post(
+            "/api/commerce/cart/items/",
+            {"product_id": self.product.id, "quantity": 1},
+            format="json",
+        )
+        token = add.data["guest_cart_token"]
+        payload = {
+            "full_name": "Guest Buyer",
+            "email": "guest@example.com",
+            "phone": "+14085550123",
+            "shipping_address": {
+                "line1": "1 Main St",
+                "city": "Los Angeles",
+                "state": "CA",
+                "postal_code": "10001",
+                "country": "US",
+            },
+            "shipping_option": "standard",
+            "payment_method": "stripe_sandbox",
+            "payment_token": "tok_success",
+        }
+
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {
+            "post code": "10001",
+            "country": "United States",
+            "places": [
+                {
+                    "place name": "New York",
+                    "state": "New York",
+                    "state abbreviation": "NY",
+                }
+            ],
+        }
+
+        checkout = self.client.post(
+            "/api/commerce/checkout/place-order/",
+            payload,
+            format="json",
+            HTTP_X_GUEST_CART_TOKEN=token,
+        )
+        self.assertEqual(checkout.status_code, 400)
+        self.assertIn("shipping_address", checkout.data)
+
+    @override_settings(
+        ADDRESS_VALIDATION_ENABLED=True,
+        ADDRESS_VALIDATION_STRICT=False,
+        GEOAPIFY_API_KEY="",
+    )
+    def test_checkout_rejects_fi_city_state_postal_mismatch_without_external_validator(self):
+        add = self.client.post(
+            "/api/commerce/cart/items/",
+            {"product_id": self.product.id, "quantity": 1},
+            format="json",
+        )
+        token = add.data["guest_cart_token"]
+        payload = {
+            "full_name": "Guest Buyer",
+            "email": "guest@example.com",
+            "phone": "+358401234567",
+            "shipping_address": {
+                "line1": "Hopeatie 10 A 2",
+                "city": "Espoo",
+                "state": "Vantaa",
+                "postal_code": "00440",
+                "country": "Finland",
+            },
+            "shipping_option": "standard",
+            "payment_method": "stripe_sandbox",
+            "payment_token": "tok_success",
+        }
+        checkout = self.client.post(
+            "/api/commerce/checkout/place-order/",
+            payload,
+            format="json",
+            HTTP_X_GUEST_CART_TOKEN=token,
+        )
+        self.assertEqual(checkout.status_code, 400)
+        self.assertIn("shipping_address", checkout.data)
+
     def test_checkout_failure_tokens_cover_required_scenarios(self):
         failure_cases = [
             ("tok_fail_insufficient_funds", "insufficient_funds"),

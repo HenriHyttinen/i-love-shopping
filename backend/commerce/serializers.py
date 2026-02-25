@@ -11,6 +11,23 @@ PHONE_RE = re.compile(r"^[+0-9()\-\s]{7,20}$")
 POSTAL_RE = re.compile(r"^[A-Za-z0-9\-\s]{3,12}$")
 
 
+def _country_requires_state(country: str) -> bool:
+    normalized = (country or "").strip().lower()
+    return normalized in {
+        "us",
+        "usa",
+        "united states",
+        "united states of america",
+        "fi",
+        "finland",
+        "suomi",
+        "ca",
+        "canada",
+        "au",
+        "australia",
+    }
+
+
 class CartItemMutationSerializer(serializers.Serializer):
     product_id = serializers.IntegerField(min_value=1, required=True)
     quantity = serializers.IntegerField(min_value=1, max_value=99, required=True)
@@ -43,7 +60,9 @@ class CheckoutSerializer(serializers.Serializer):
         return token
 
     def validate_shipping_address(self, value):
-        required_fields = ["line1", "city", "state", "postal_code", "country"]
+        required_fields = ["line1", "city", "postal_code", "country"]
+        if _country_requires_state(str(value.get("country", ""))):
+            required_fields.append("state")
         missing = [field for field in required_fields if not str(value.get(field, "")).strip()]
         if missing:
             raise serializers.ValidationError(f"Missing required fields: {', '.join(missing)}")

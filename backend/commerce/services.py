@@ -56,13 +56,17 @@ def get_or_create_cart(user=None, guest_token: str = "") -> Cart:
             guest_cart = Cart.objects.filter(guest_token=guest_token).prefetch_related("items").first()
             if guest_cart and guest_cart.items.exists():
                 for item in guest_cart.items.select_related("product"):
+                    # Keep merged carts valid by capping quantity to current stock.
+                    max_stock = max(item.product.stock_quantity, 0)
+                    if max_stock == 0:
+                        continue
                     merged, created = CartItem.objects.get_or_create(
                         cart=cart,
                         product=item.product,
-                        defaults={"quantity": item.quantity, "unit_price": item.unit_price},
+                        defaults={"quantity": min(item.quantity, max_stock), "unit_price": item.unit_price},
                     )
                     if not created:
-                        merged.quantity += item.quantity
+                        merged.quantity = min(merged.quantity + item.quantity, max_stock)
                         merged.unit_price = item.unit_price
                         merged.save(update_fields=["quantity", "unit_price", "updated_at"])
                 guest_cart.delete()
