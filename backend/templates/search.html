@@ -17,7 +17,15 @@
   <div class="nav-wrap">
     <div><div class="brand">Hardware Shop</div><div class="footer-note">Search Results</div></div>
     <nav aria-label="Primary">
-      <a href="/">Home</a><a class="active" href="/search/">Search</a><a href="/cart/">Cart</a><a href="/checkout/">Checkout</a><a href="/orders/">Orders</a>
+      <a href="/">Home</a><a href="/products/">Products</a><a class="active" href="/search/">Search</a><a href="/cart/">Cart</a><a href="/checkout/">Checkout</a><a href="/orders/">Orders</a>
+      <span id="nav-guest">
+        <a href="/login/">Login</a>
+        <a href="/register/">Register</a>
+      </span>
+      <span id="nav-member" style="display:none;">
+        <a href="/account/">Account</a>
+        <a href="#" id="nav-logout">Logout</a>
+      </span>
     </nav>
   </div>
 </header>
@@ -36,8 +44,8 @@
       <button id="search-btn">Search</button>
       <button class="secondary" id="prev-page-btn">Prev</button>
       <button class="secondary" id="next-page-btn">Next</button>
-      <span id="result-count" class="badge">0 results</span>
-      <span id="page-indicator" class="badge">Page 1</span>
+      <span id="result-count" class="stat-chip">0 results</span>
+      <span id="page-indicator" class="stat-chip">Page 1</span>
     </div>
     <div id="search-status" class="status info">Ready.</div>
   </section>
@@ -47,6 +55,8 @@
   </section>
 </main>
 <script src="{% static 'ui.js' %}"></script>
+<script src="{% static 'auth.js' %}"></script>
 <script src="{% static 'search.js' %}"></script>
+<script>if (window.ShopAuth) window.ShopAuth.refreshAuthNav();</script>
 </body>
 </html>
