@@ -12,6 +12,7 @@ Main focus areas:
 - review and rating system with helpful voting
 - admin management tools (products, categories, users, delivery options, refunds)
 - required UI pages (PDP/PLP/search/contact/about/admin/404/order confirmation)
+- image handling with generated thumbnail/medium/full-size variants
 - security hardening (2FA-gated admin, token bucket rate limiting, TLS-ready reverse proxy)
 
 The project runs as a Django app with Docker support.
@@ -222,6 +223,13 @@ For test cards, use:
 ### Cart Behavior
 - Cart page updates line totals and subtotal in real time when quantity changes.
 - Quantity updates are still synced to backend immediately after (debounced), so server remains source of truth.
+
+### Image Variants
+- Product image API returns:
+  - `image_thumbnail`
+  - `image_medium`
+  - `image_full`
+- Variants are generated on upload and served from media storage.
 
 ### Commerce API Quick Map
 Cart:
@@ -436,6 +444,13 @@ BASE_URL=https://localhost:8443 k6 run loadtests/k6/browse_catalog.js
 - Search/filter/sort/pagination and grid/list support:
   - `backend/static/product_list.js`
   - `backend/static/search.js`
+- Home featured products + collections:
+  - `backend/static/home.js`
+  - `backend/templates/index.html`
+- Product image multi-size storage/serving:
+  - `backend/catalog/models.py`
+  - `backend/catalog/serializers.py`
+  - tests: `backend/tests/test_catalog.py`
 - Security requirements (token bucket, input validation, tokenized payments, encryption at rest, TLS local setup):
   - `backend/config/middleware.py`
   - `backend/commerce/serializers.py`

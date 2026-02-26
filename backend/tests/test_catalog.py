@@ -144,6 +144,9 @@ class CatalogTests(TestCase):
             format="multipart",
         )
         self.assertEqual(response.status_code, 201)
+        self.assertIn("image_thumbnail", response.data)
+        self.assertIn("image_medium", response.data)
+        self.assertIn("image_full", response.data)
 
         for _ in range(4):
             image = Image.new("RGB", (1, 1), color=(255, 0, 0))

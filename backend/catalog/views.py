@@ -24,6 +24,7 @@ from .serializers import (
     ProductAdminSerializer,
     ProductSerializer,
     ProductImageUploadSerializer,
+    ProductImageSerializer,
     ReviewSerializer,
 )
 from users.permissions import IsAdminWith2FA
@@ -102,8 +103,8 @@ class ProductImageUploadView(APIView):
         serializer.is_valid(raise_exception=True)
         image = serializer.validated_data["image"]
         processed = self._process_image(image)
-        serializer.save(product=product, image=processed)
-        return Response(serializer.data, status=201)
+        created = serializer.save(product=product, image=processed)
+        return Response(ProductImageSerializer(created).data, status=201)
 
     def _process_image(self, image):
         from PIL import Image

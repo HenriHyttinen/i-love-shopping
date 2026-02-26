@@ -1,6 +1,9 @@
 from decimal import Decimal, ROUND_HALF_UP
+from io import BytesIO
+from pathlib import Path
 
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.db import models
 from django.db.models import Avg
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -60,6 +63,67 @@ class ProductImage(models.Model):
     image = models.ImageField(upload_to="products/")
     alt_text = models.CharField(max_length=200, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    VARIANT_SIZES = {
+        "thumbnail": (120, 120),
+        "medium": (360, 360),
+    }
+
+    def _variant_name(self, size_key):
+        source = Path(self.image.name)
+        ext = ".png" if source.suffix.lower() == ".png" else ".jpg"
+        stem = source.stem
+        return str(source.parent / f"{stem}_{size_key}{ext}")
+
+    def _generate_variants(self):
+        if not self.image:
+            return
+        from PIL import Image
+
+        with self.image.open("rb") as fp:
+            source = Image.open(fp)
+            source.load()
+
+        for size_key, dimensions in self.VARIANT_SIZES.items():
+            target_name = self._variant_name(size_key)
+            if self.image.storage.exists(target_name):
+                continue
+            variant = source.copy()
+            if variant.mode not in ("RGB", "RGBA"):
+                variant = variant.convert("RGB")
+            variant.thumbnail(dimensions)
+
+            output = BytesIO()
+            ext = Path(target_name).suffix.lower()
+            if ext == ".png":
+                variant.save(output, format="PNG", optimize=True)
+            else:
+                if variant.mode == "RGBA":
+                    variant = variant.convert("RGB")
+                variant.save(output, format="JPEG", quality=85, optimize=True)
+            output.seek(0)
+            self.image.storage.save(target_name, ContentFile(output.read()))
+
+    def save(self, *args, **kwargs):
+        is_create = self._state.adding
+        super().save(*args, **kwargs)
+        if is_create and self.image:
+            self._generate_variants()
+
+    def delete(self, *args, **kwargs):
+        for size_key in self.VARIANT_SIZES.keys():
+            name = self._variant_name(size_key)
+            if self.image.storage.exists(name):
+                self.image.storage.delete(name)
+        super().delete(*args, **kwargs)
+
+    def variant_url(self, size_key):
+        if size_key == "full":
+            return self.image.url
+        name = self._variant_name(size_key)
+        if self.image.storage.exists(name):
+            return self.image.storage.url(name)
+        return self.image.url
 
 
 class ProductSpec(models.Model):

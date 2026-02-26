@@ -7,9 +7,22 @@ from .models import Brand, Category, Product, ProductImage, ProductSpec, Review
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
+    image_full = serializers.SerializerMethodField()
+    image_medium = serializers.SerializerMethodField()
+    image_thumbnail = serializers.SerializerMethodField()
+
     class Meta:
         model = ProductImage
-        fields = ("id", "image", "alt_text")
+        fields = ("id", "image", "image_full", "image_medium", "image_thumbnail", "alt_text")
+
+    def get_image_full(self, obj):
+        return obj.variant_url("full")
+
+    def get_image_medium(self, obj):
+        return obj.variant_url("medium")
+
+    def get_image_thumbnail(self, obj):
+        return obj.variant_url("thumbnail")
 
 
 class CategorySerializer(serializers.ModelSerializer):

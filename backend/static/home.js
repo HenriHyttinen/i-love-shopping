@@ -88,12 +88,40 @@
     });
   }
 
+  function renderFeatured(products) {
+    const root = U.byId("featured-products");
+    if (!root) return;
+    const top = (products || []).slice().sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0)).slice(0, 4);
+    if (!top.length) {
+      root.innerHTML = '<div class="muted">No featured products yet.</div>';
+      return;
+    }
+    root.innerHTML = top
+      .map((p) => `<article class="product"><h3>${U.esc(p.name)}</h3><div class="muted">${U.fmtMoney(p.price)}</div><a class="btn-link" href="/products/${p.id}/">View Product</a></article>`)
+      .join("");
+  }
+
+  async function loadCollections() {
+    const root = U.byId("home-categories");
+    if (!root) return;
+    try {
+      const categories = await U.request(U.API + "/catalog/categories/", { guest: false });
+      root.innerHTML = (categories || [])
+        .slice(0, 8)
+        .map((c) => `<a class="badge" style="text-decoration:none;" href="/products/?category=${encodeURIComponent(c.slug)}">${U.esc(c.name)}</a>`)
+        .join("");
+    } catch (_) {
+      root.innerHTML = '<span class="muted">Could not load collections.</span>';
+    }
+  }
+
   async function runSearch() {
     try {
       U.setStatus("catalog-status", "Loading products...", "info");
       const qs = buildSearchParams();
       const products = await U.request(U.API + "/catalog/products/?" + qs, { guest: false });
       renderProducts(products);
+      renderFeatured(products);
       U.byId("raw-products").textContent = JSON.stringify(products, null, 2);
       U.setStatus("catalog-status", products.length + " products loaded.", "info");
     } catch (err) {
@@ -137,4 +165,5 @@
 
   runSearchWithRetry(3, 900);
   loadCartBadge();
+  loadCollections();
 })();

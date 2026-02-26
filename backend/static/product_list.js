@@ -5,6 +5,14 @@
   let currentPage = 1;
   let currentView = "grid";
 
+  function applyQueryPrefill() {
+    const params = new URLSearchParams(window.location.search || "");
+    const category = params.get("category") || "";
+    const search = params.get("q") || "";
+    if (category) U.byId("plp-category").value = category;
+    if (search) U.byId("plp-search").value = search;
+  }
+
   function ratingMarkup(value) {
     const numeric = Math.max(0, Math.min(5, Number(value || 0)));
     const rounded = Math.round(numeric);
@@ -103,5 +111,6 @@
     renderCurrentPage();
   });
 
+  applyQueryPrefill();
   search();
 })();

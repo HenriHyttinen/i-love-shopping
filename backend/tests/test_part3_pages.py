@@ -21,6 +21,13 @@ class Part3PageTests(TestCase):
                 self.assertIn('class="skip-link"', body)
                 self.assertIn("<h1", body)
 
+    def test_home_includes_featured_and_collections_sections(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode("utf-8")
+        self.assertIn("Featured Products", body)
+        self.assertIn("Collections", body)
+
     @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
     def test_contact_support_endpoint(self):
         response = self.client.post(
