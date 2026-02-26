@@ -158,6 +158,12 @@ class AdminPart3Tests(TestCase):
         self.assertEqual(updated.status_code, 200)
         self.assertEqual(updated.data["status"], RefundRequest.STATUS_APPROVED)
 
+    def test_admin_order_list_endpoint(self):
+        headers = self._admin_auth_header(email="admin-orders@example.com")
+        listed = self.client.get("/api/commerce/admin/orders/", **headers)
+        self.assertEqual(listed.status_code, 200)
+        self.assertIsInstance(listed.data, list)
+
     def test_admin_bulk_upload_and_review_moderation(self):
         headers = self._admin_auth_header()
         payload = """

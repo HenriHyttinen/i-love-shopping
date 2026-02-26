@@ -463,6 +463,14 @@ class AdminOrderStatusUpdateView(APIView):
         return Response(OrderSerializer(order).data)
 
 
+class AdminOrderListView(APIView):
+    permission_classes = [IsAdminWith2FA]
+
+    def get(self, request):
+        queryset = Order.objects.all().prefetch_related("status_events", "items").order_by("-created_at")
+        return Response(OrderSerializer(queryset, many=True).data)
+
+
 class RefundRequestListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 

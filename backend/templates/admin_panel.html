@@ -79,18 +79,111 @@
 
   <section class="panel">
     <h2>User Roles</h2>
+    <div class="grid">
+      <div><label>User ID</label><input id="user-role-id" type="number" min="1"></div>
+      <div>
+        <label>Role</label>
+        <select id="user-role-value">
+          <option value="customer">customer</option>
+          <option value="admin">admin</option>
+          <option value="support">support</option>
+          <option value="sales">sales</option>
+        </select>
+      </div>
+    </div>
     <div class="btn-row">
+      <button id="user-role-update-btn">Update Role</button>
       <button class="secondary" id="users-refresh-btn">Load Users</button>
     </div>
     <pre id="users-json" class="code">[]</pre>
   </section>
 
   <section class="panel">
+    <h2>Categories</h2>
+    <div class="grid">
+      <div><label>Category ID (for update/delete)</label><input id="category-id" type="number" min="1"></div>
+      <div><label>Name</label><input id="category-name" type="text"></div>
+      <div><label>Slug</label><input id="category-slug" type="text"></div>
+    </div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button id="category-create-btn">Create Category</button>
+      <button class="secondary" id="category-update-btn">Update Category</button>
+      <button class="danger" id="category-delete-btn">Delete Category</button>
+      <button class="secondary" id="category-refresh-btn">Load Categories</button>
+    </div>
+    <pre id="categories-json" class="code">[]</pre>
+  </section>
+
+  <section class="panel">
+    <h2>Products</h2>
+    <div class="grid">
+      <div><label>Product ID (for update/delete)</label><input id="product-id-admin" type="number" min="1"></div>
+      <div><label>Name</label><input id="product-name-admin" type="text"></div>
+      <div><label>Price</label><input id="product-price-admin" type="number" step="0.01"></div>
+      <div><label>Stock Quantity</label><input id="product-stock-admin" type="number" min="0"></div>
+      <div><label>Category ID</label><input id="product-category-admin" type="number" min="1"></div>
+      <div><label>Brand ID</label><input id="product-brand-admin" type="number" min="1"></div>
+    </div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button id="product-create-btn">Create Product</button>
+      <button class="secondary" id="product-update-btn">Update Product</button>
+      <button class="danger" id="product-delete-btn">Delete Product</button>
+      <button class="secondary" id="product-refresh-btn">Load Products</button>
+    </div>
+    <pre id="products-json" class="code">[]</pre>
+  </section>
+
+  <section class="panel">
+    <h2>Orders</h2>
+    <div class="grid">
+      <div><label>Order ID</label><input id="order-id-admin" type="number" min="1"></div>
+      <div>
+        <label>Status</label>
+        <select id="order-status-admin">
+          <option value="pending_payment">pending_payment</option>
+          <option value="payment_successful">payment_successful</option>
+          <option value="payment_failed">payment_failed</option>
+          <option value="cancelled">cancelled</option>
+        </select>
+      </div>
+      <div style="grid-column:1/-1;"><label>Note</label><input id="order-note-admin" type="text"></div>
+    </div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button id="order-status-update-btn">Update Order Status</button>
+      <button class="secondary" id="orders-refresh-btn">Load Orders</button>
+    </div>
+    <pre id="orders-json-admin" class="code">[]</pre>
+  </section>
+
+  <section class="panel">
     <h2>Refund Requests</h2>
+    <div class="grid">
+      <div><label>Refund ID</label><input id="refund-id-admin" type="number" min="1"></div>
+      <div>
+        <label>Status</label>
+        <select id="refund-status-admin">
+          <option value="pending">pending</option>
+          <option value="approved">approved</option>
+          <option value="rejected">rejected</option>
+        </select>
+      </div>
+      <div style="grid-column:1/-1;"><label>Note</label><input id="refund-note-admin" type="text"></div>
+    </div>
     <div class="btn-row">
+      <button id="refund-status-update-btn">Update Refund Status</button>
       <button class="secondary" id="refunds-refresh-btn">Load Refunds</button>
     </div>
     <pre id="refunds-json" class="code">[]</pre>
+  </section>
+
+  <section class="panel">
+    <h2>Review Moderation</h2>
+    <div class="grid">
+      <div><label>Review ID</label><input id="review-id-admin" type="number" min="1"></div>
+    </div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button class="danger" id="review-delete-btn">Delete Review</button>
+    </div>
   </section>
 </main>
 
