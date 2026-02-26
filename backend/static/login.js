@@ -15,14 +15,22 @@
         body: { email, password },
       });
       U.setAccessToken(data.access);
+      let me = null;
       if (window.ShopAuth) await window.ShopAuth.refreshAuthNav();
+      try {
+        me = await U.fetchCurrentUser();
+      } catch (_) {
+        me = null;
+      }
       U.setStatus("login-status", "Login successful.", "ok");
-      const next = U.byId("next").value.trim() || "/account/";
+      const providedNext = U.byId("next").value.trim();
+      const defaultNext = me && me.is_staff ? "/admin-panel/" : "/account/";
+      const next = providedNext || defaultNext;
       setTimeout(() => {
         location.href = next;
       }, 300);
     } catch (err) {
-      U.setStatus("login-status", JSON.stringify(err), "error");
+      U.setStatus("login-status", U.errorText(err), "error");
     }
   }
 

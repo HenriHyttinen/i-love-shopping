@@ -249,6 +249,12 @@
 
   const API = "/api";
 
+  function shouldEnableGlobalQuickUX() {
+    const path = window.location.pathname || "/";
+    const disabledPrefixes = ["/login/", "/register/", "/api/auth/reset/"];
+    return !disabledPrefixes.some((prefix) => path.startsWith(prefix));
+  }
+
   function initCookieConsent() {
     const key = "cookie_consent";
     const current = localStorage.getItem(key);
@@ -288,7 +294,7 @@
   if (typeof window !== "undefined") {
     window.addEventListener("DOMContentLoaded", () => {
       const consentAccepted = initCookieConsent();
-      if (consentAccepted) {
+      if (consentAccepted && shouldEnableGlobalQuickUX()) {
         initGlobalQuickUX();
       }
     });
