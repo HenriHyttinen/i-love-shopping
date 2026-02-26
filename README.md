@@ -408,6 +408,46 @@ BASE_URL=https://localhost:8443 k6 run loadtests/k6/browse_catalog.js
 7. Validate terminal state guard (`409` on invalid regression).
 8. Process paid order as staff, verify cancellation is blocked afterwards.
 
+## Mandatory Criteria Mapping
+- Reviews + average rating + helpful sorting:
+  - `backend/catalog/models.py`
+  - `backend/catalog/views.py`
+  - `backend/catalog/serializers.py`
+  - tests: `backend/tests/test_catalog.py`
+- 2FA enforcement for admin accounts:
+  - `backend/users/serializers.py`
+  - `backend/users/permissions.py`
+  - tests: `backend/tests/test_admin_part3.py`
+- Admin CRUD (products/categories/orders/refunds/users), delivery options, review moderation, bulk upload:
+  - `backend/catalog/views.py`
+  - `backend/commerce/views.py`
+  - `backend/users/views.py`
+  - `backend/static/admin_panel.js`
+  - tests: `backend/tests/test_admin_part3.py`
+- Required pages (home, PLP, PDP, cart, checkout, order confirmation, account, search, admin, contact, about, 404):
+  - `backend/config/urls.py`
+  - `backend/templates/*.html`
+  - tests: `backend/tests/test_part3_pages.py`
+- Search/filter/sort/pagination and grid/list support:
+  - `backend/static/product_list.js`
+  - `backend/static/search.js`
+- Security requirements (token bucket, input validation, tokenized payments, encryption at rest, TLS local setup):
+  - `backend/config/middleware.py`
+  - `backend/commerce/serializers.py`
+  - `backend/commerce/services.py`
+  - `ops/nginx/default.conf`
+  - `ops/tls/generate_self_signed_cert.sh`
+  - tests: `backend/tests/test_security.py`, `backend/tests/test_commerce.py`
+
+## Review Demo Flow (10-15 min)
+1. Home + PLP + PDP: open `/`, `/products/`, `/products/<id>/`, show ratings/reviews/helpful votes.
+2. Cart + checkout: add product, modify quantity, show real-time totals and checkout validation.
+3. Payment outcomes: run one success (`tok_success`) and one failure (`tok_fail_*`).
+4. Order lifecycle: show `/orders/`, then admin updates order status from `/admin-panel/`.
+5. Admin controls: CRUD category/product, update user role, manage delivery option, moderation delete review, bulk upload JSON.
+6. Security: show admin 2FA requirement, demonstrate rate limit (`429`) with repeated API calls, show TLS profile startup command.
+7. Testing proof: run `docker-compose exec -T backend python manage.py test -v 2`.
+
 ## Reviewer Checklist
 - README includes overview, ERD, setup, and usage.
 - Guest and persistent cart behavior can be demonstrated.
