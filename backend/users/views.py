@@ -23,6 +23,7 @@ from .serializers import (
 )
 from .models import AccessTokenBlocklist
 from .permissions import IsAdminWith2FA
+from .security import hash_token_identifier
 from allauth.account.models import EmailAddress
 
 
@@ -126,7 +127,10 @@ class RevokeAccessTokenView(APIView):
         if not jti or not exp:
             return Response({"detail": "Invalid token payload"}, status=400)
         expires_at = datetime.fromtimestamp(exp, tz=timezone.utc)
-        AccessTokenBlocklist.objects.get_or_create(jti=jti, defaults={"expires_at": expires_at})
+        AccessTokenBlocklist.objects.get_or_create(
+            jti=hash_token_identifier(jti),
+            defaults={"expires_at": expires_at},
+        )
         return Response({"detail": "Access token revoked"})
 
 

@@ -1,6 +1,9 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 
+from .fields import EncryptedTextField
+from .security import hash_token_identifier
+
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -33,13 +36,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     ]
 
     email = models.EmailField(unique=True)
-    full_name = models.CharField(max_length=120, blank=True)
+    full_name = EncryptedTextField(blank=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=ROLE_CUSTOMER)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
 
-    otp_secret = models.CharField(max_length=32, blank=True)
+    otp_secret = EncryptedTextField(blank=True)
     is_2fa_enabled = models.BooleanField(default=False)
 
     objects = UserManager()
@@ -55,6 +58,11 @@ class AccessTokenBlocklist(models.Model):
     jti = models.CharField(max_length=255, unique=True)
     expires_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if self.jti and len(self.jti) != 64:
+            self.jti = hash_token_identifier(self.jti)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.jti

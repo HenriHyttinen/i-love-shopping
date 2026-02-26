@@ -151,6 +151,7 @@ cp backend/envtemplate.txt backend/.env
 - `GOOGLE_OAUTH_CLIENT_SECRET`
 - `RECAPTCHA_SECRET_KEY`
 - `COMMERCE_ENCRYPTION_KEY` (recommended)
+- `USER_DATA_ENCRYPTION_KEY` (recommended, for user PII/2FA secret field encryption)
 - `GEOAPIFY_API_KEY` (recommended for strict shipping address verification)
 - optional: `ADDRESS_VALIDATION_ENABLED` (default `1`)
 - optional: `ADDRESS_VALIDATION_STRICT` (`1` = fail closed if validator is unavailable)
@@ -280,7 +281,9 @@ Part 3 additions:
 - Access tokens are intended for in-memory use.
 - Refresh rotation + blacklist are enabled.
 - Checkout accepts only tokenized payment values (`tok_*` or `pm_*`).
+- User PII (`full_name`) and 2FA secrets are encrypted at rest.
 - Order and payment payloads are encrypted at rest.
+- Revoked access token identifiers are stored as SHA-256 hashes.
 - Stock updates and checkout use transactions/row locks to prevent overselling.
 - API token bucket rate limiting is enabled for `/api/*` endpoints.
 - Admin endpoints are protected by role + staff + mandatory 2FA checks.
@@ -316,6 +319,23 @@ SESSION_COOKIE_SECURE=0
 CSRF_COOKIE_SECURE=0
 SECURE_HSTS_SECONDS=0
 ```
+
+Recommended hardened review profile (when running behind TLS):
+```env
+SECURE_MODE=1
+SECURE_SSL_REDIRECT=1
+SESSION_COOKIE_SECURE=1
+CSRF_COOKIE_SECURE=1
+CSRF_COOKIE_HTTPONLY=1
+SESSION_COOKIE_SAMESITE=Lax
+CSRF_COOKIE_SAMESITE=Lax
+SESSION_ENGINE=django.contrib.sessions.backends.signed_cookies
+SECURE_HSTS_SECONDS=31536000
+```
+
+Notes:
+- `SECURE_MODE=1` forces secure redirect + secure cookies + strong HSTS defaults.
+- Signed-cookie session engine avoids storing session payloads in the database.
 
 ### PCI DSS (short explanation)
 PCI DSS means card data must be handled securely. In practice for this project:
@@ -504,7 +524,7 @@ Resource profiling (Docker stats sampled during load runs):
 
 ## Review Explanations (Short)
 - CIA principles in this project:
-  - Confidentiality: sensitive order/payment payloads are encrypted at rest and payment data is tokenized.
+  - Confidentiality: user PII/2FA secrets and sensitive order/payment payloads are encrypted at rest, payment data is tokenized, and revoked token IDs are hashed.
   - Integrity: transactional checkout + row locks + controlled order status transitions prevent inconsistent writes.
   - Availability: rate limiting reduces abuse impact, and Dockerized deployment keeps environment reproducible.
 - Semantic HTML and accessibility approach:
