@@ -5,19 +5,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Account | Hardware Shop</title>
+  <meta name="description" content="Manage account profile, view role information, and access order history and admin tools.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'ui.css' %}">
 </head>
 <body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
 <header>
   <div class="nav-wrap">
     <div>
       <div class="brand">Hardware Shop</div>
       <div class="footer-note">My Account</div>
     </div>
-    <nav>
+    <nav aria-label="Primary">
       <a href="/">Home</a>
       <a href="/cart/">Cart</a>
       <a href="/checkout/">Checkout</a>
@@ -34,7 +36,7 @@
   </div>
 </header>
 
-<main>
+<main id="main-content" tabindex="-1">
   <section class="panel" style="max-width:760px; margin:24px auto;">
     <h1>Account Overview</h1>
     <div class="grid">
@@ -45,6 +47,7 @@
     <div class="btn-row" style="margin-top:12px;">
       <button id="go-orders">View Orders</button>
       <button class="secondary" id="go-checkout-guest">Checkout</button>
+      <button class="secondary" id="go-admin-panel" style="display:none;">Admin Panel</button>
     </div>
     <div id="account-status" class="status info">Loading...</div>
   </section>

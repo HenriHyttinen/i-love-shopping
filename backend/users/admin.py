@@ -7,12 +7,12 @@ from .models import AccessTokenBlocklist, User
 @admin.register(User)
 class UserAdmin(DjangoUserAdmin):
     model = User
-    list_display = ("email", "full_name", "is_staff", "is_2fa_enabled")
-    list_filter = ("is_staff", "is_superuser", "is_active")
+    list_display = ("email", "full_name", "role", "is_staff", "is_2fa_enabled")
+    list_filter = ("role", "is_staff", "is_superuser", "is_active")
     ordering = ("email",)
     fieldsets = (
         (None, {"fields": ("email", "password")}),
-        ("Personal info", {"fields": ("full_name",)}),
+        ("Personal info", {"fields": ("full_name", "role")}),
         (
             "Security",
             {"fields": ("is_2fa_enabled", "otp_secret")},

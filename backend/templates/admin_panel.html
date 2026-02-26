@@ -1,0 +1,102 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Panel | Hardware Shop</title>
+  <meta name="description" content="Admin dashboard for products, categories, refunds, users, delivery options, and bulk uploads.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'ui.css' %}">
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<header>
+  <div class="nav-wrap">
+    <div>
+      <div class="brand">Hardware Shop</div>
+      <div class="footer-note">Admin Control Center</div>
+    </div>
+    <nav aria-label="Primary">
+      <a href="/">Home</a>
+      <a href="/cart/">Cart</a>
+      <a href="/orders/">Orders</a>
+      <a class="active" href="/admin-panel/">Admin Panel</a>
+      <span id="nav-guest">
+        <a href="/login/">Login</a>
+        <a href="/register/">Register</a>
+      </span>
+      <span id="nav-member" style="display:none;">
+        <a href="/account/">Account</a>
+        <a href="#" id="nav-logout">Logout</a>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<main id="main-content" tabindex="-1">
+  <section class="panel">
+    <h1>Admin Panel</h1>
+    <p class="muted">Requires staff role + enabled 2FA.</p>
+    <div id="admin-status" class="status info">Loading admin data...</div>
+  </section>
+
+  <section class="panel">
+    <h2>Bulk Upload Products</h2>
+    <div class="grid">
+      <div>
+        <label>Format</label>
+        <select id="bulk-format">
+          <option value="json">json</option>
+          <option value="csv">csv</option>
+        </select>
+      </div>
+      <div style="grid-column:1/-1;">
+        <label>Payload</label>
+        <textarea id="bulk-payload" rows="8" placeholder='[{"name":"Example",...}]'></textarea>
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button id="bulk-upload-btn">Run Bulk Upload</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Delivery Options</h2>
+    <div class="grid">
+      <div><label>Code</label><input id="delivery-code" type="text"></div>
+      <div><label>Label</label><input id="delivery-label" type="text"></div>
+      <div><label>Cost</label><input id="delivery-cost" type="number" step="0.01"></div>
+    </div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button id="delivery-create-btn">Add Delivery Option</button>
+      <button class="secondary" id="delivery-refresh-btn">Refresh</button>
+    </div>
+    <pre id="delivery-json" class="code">[]</pre>
+  </section>
+
+  <section class="panel">
+    <h2>User Roles</h2>
+    <div class="btn-row">
+      <button class="secondary" id="users-refresh-btn">Load Users</button>
+    </div>
+    <pre id="users-json" class="code">[]</pre>
+  </section>
+
+  <section class="panel">
+    <h2>Refund Requests</h2>
+    <div class="btn-row">
+      <button class="secondary" id="refunds-refresh-btn">Load Refunds</button>
+    </div>
+    <pre id="refunds-json" class="code">[]</pre>
+  </section>
+</main>
+
+<script src="{% static 'ui.js' %}"></script>
+<script src="{% static 'auth.js' %}"></script>
+<script src="{% static 'admin_panel.js' %}"></script>
+<script>if (window.ShopAuth) window.ShopAuth.refreshAuthNav();</script>
+</body>
+</html>

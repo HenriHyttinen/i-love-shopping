@@ -1,15 +1,18 @@
-# i-love-shopping (Part 2)
+# i-love-shopping (Part 3)
 
 ## Overview
-This is the Commerce part of my fullstack e-commerce project for the advanced fullstack specialization.
+This repository contains Part 3 (Experience + Management + Security hardening) of my fullstack e-commerce project for the advanced fullstack specialization.
 
-In this part I focused on:
+Main focus areas:
 - guest and logged-in carts
 - real-time cart quantity updates with instant subtotal recalculation
 - single-page checkout
 - payment simulation with success/failure scenarios
 - order management (status updates, filtering, cancellation)
-- security basics for payment handling and data encryption
+- review and rating system with helpful voting
+- admin management tools (products, categories, users, delivery options, refunds)
+- required UI pages (PDP/PLP/search/contact/about/admin/404/order confirmation)
+- security hardening (2FA-gated admin, token bucket rate limiting, TLS-ready reverse proxy)
 
 The project runs as a Django app with Docker support.
 
@@ -177,9 +180,16 @@ python manage.py runserver
   - `http://localhost:8000/login/`
   - `http://localhost:8000/register/`
   - `http://localhost:8000/account/`
+  - `http://localhost:8000/products/`
+  - `http://localhost:8000/products/<id>/`
   - `http://localhost:8000/cart/`
   - `http://localhost:8000/checkout/`
+  - `http://localhost:8000/order-confirmation/`
   - `http://localhost:8000/orders/`
+  - `http://localhost:8000/search/`
+  - `http://localhost:8000/contact/`
+  - `http://localhost:8000/about/`
+  - `http://localhost:8000/admin-panel/`
 
 ### Checkout and Payments (review focus)
 - Checkout is single-page.
@@ -242,12 +252,62 @@ Payment callback simulation:
 - `POST /api/commerce/payments/callback/`
 - optional header: `X-Payment-Callback-Secret`
 
+Part 3 additions:
+- `GET/POST /api/catalog/products/{product_id}/reviews/`
+- `POST /api/catalog/reviews/{review_id}/helpful/`
+- `GET/POST /api/auth/admin/users/` and `/api/auth/admin/users/{id}/role/`
+- `GET/POST /api/commerce/admin/delivery-options/`
+- `PATCH/DELETE /api/commerce/admin/delivery-options/{id}/`
+- `POST /api/commerce/admin/orders/{id}/status/`
+- `GET /api/commerce/admin/refunds/`
+- `POST /api/commerce/admin/refunds/{id}/status/`
+- `GET/POST /api/commerce/refunds/`
+- `DELETE /api/catalog/admin/reviews/{id}/`
+- `POST /api/catalog/admin/products/bulk-upload/`
+- `GET/POST /api/catalog/admin/products/` + `GET/PATCH/DELETE /api/catalog/admin/products/{id}/`
+- `GET/POST /api/catalog/admin/categories/` + `GET/PATCH/DELETE /api/catalog/admin/categories/{id}/`
+- `POST /api/support/contact/`
+
 ## Security and Compliance Notes
 - Access tokens are intended for in-memory use.
 - Refresh rotation + blacklist are enabled.
 - Checkout accepts only tokenized payment values (`tok_*` or `pm_*`).
 - Order and payment payloads are encrypted at rest.
 - Stock updates and checkout use transactions/row locks to prevent overselling.
+- API token bucket rate limiting is enabled for `/api/*` endpoints.
+- Admin endpoints are protected by role + staff + mandatory 2FA checks.
+
+### Token Bucket Rate Limiting
+Config (`backend/.env`):
+```env
+RATE_LIMIT_ENABLED=1
+RATE_LIMIT_CAPACITY=120
+RATE_LIMIT_REFILL_RATE=2.0
+```
+- Capacity = max burst tokens per client bucket.
+- Refill rate = tokens/second.
+- Returns `429` with `Retry-After` when bucket is empty.
+
+### TLS (Self-Signed, local demo)
+1. Generate cert:
+```bash
+./ops/tls/generate_self_signed_cert.sh
+```
+2. Start stack with TLS reverse proxy profile:
+```bash
+docker-compose --profile tls up --build
+```
+3. Access:
+- `https://localhost:8443/` (TLS)
+- `http://localhost:8080/` (redirects to HTTPS)
+
+Optional secure-cookie/HSTS envs:
+```env
+SECURE_SSL_REDIRECT=0
+SESSION_COOKIE_SECURE=0
+CSRF_COOKIE_SECURE=0
+SECURE_HSTS_SECONDS=0
+```
 
 ### PCI DSS (short explanation)
 PCI DSS means card data must be handled securely. In practice for this project:
@@ -309,6 +369,34 @@ Current automated coverage includes:
 - catalog filtering/ordering/security checks
 - commerce cart/checkout/order/callback/inventory flows
 - payment failure scenario handling
+- admin part 3 APIs (roles, delivery options, refunds, moderation, bulk upload, CRUD)
+- required part 3 pages and support form
+- rate limiting behavior
+
+## Load Testing
+Load test scripts are included under `loadtests/k6/`:
+- `browse_catalog.js`
+- `search_and_pdp.js`
+- `cart_checkout.js`
+
+Run examples:
+```bash
+k6 run loadtests/k6/browse_catalog.js
+k6 run loadtests/k6/search_and_pdp.js
+k6 run loadtests/k6/cart_checkout.js
+```
+
+If app runs behind TLS proxy:
+```bash
+BASE_URL=https://localhost:8443 k6 run loadtests/k6/browse_catalog.js
+```
+
+### Performance Analysis Report (template)
+- Objective: p90 < 2s, >=50 concurrent users, >=10 tps, >=98% success, <5% error.
+- Scenario 1: catalog browsing (`browse_catalog.js`)
+- Scenario 2: search + PDP (`search_and_pdp.js`)
+- Scenario 3: cart + checkout (`cart_checkout.js`)
+- Bottlenecks to monitor: DB CPU, payment simulation latency, image/static response time.
 
 ## Manual QA (Commerce)
 1. Add/update/remove cart items and verify totals.

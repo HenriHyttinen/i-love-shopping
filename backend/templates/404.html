@@ -1,0 +1,27 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Page Not Found | Hardware Shop</title>
+  <meta name="description" content="Friendly not found page with links back to home and product search.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'ui.css' %}">
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<main id="main-content" tabindex="-1">
+  <section class="panel" style="max-width:680px;margin:80px auto;">
+    <h1>404 - Page Not Found</h1>
+    <p class="muted">The page you requested does not exist or has been moved.</p>
+    <div class="btn-row">
+      <a class="btn-link" href="/">Back to Home</a>
+      <a class="btn-link" href="/search/">Search Products</a>
+    </div>
+  </section>
+</main>
+</body>
+</html>

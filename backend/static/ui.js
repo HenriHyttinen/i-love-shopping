@@ -161,8 +161,141 @@
       .replaceAll("'", "&#039;");
   }
 
+  async function initGlobalQuickUX() {
+    const root = document.createElement("div");
+    root.className = "quick-ux";
+    root.innerHTML = `
+      <div class="quick-search-wrap">
+        <input id="quick-search-input" type="text" placeholder="Quick search products..." />
+        <div id="quick-search-suggestions" class="quick-suggestions" style="display:none;"></div>
+      </div>
+      <div class="quick-cart-wrap">
+        <button id="quick-cart-btn" class="secondary">Cart Preview</button>
+        <div id="quick-cart-popover" class="quick-cart-popover" style="display:none;">
+          <div id="quick-cart-content" class="muted">Loading cart...</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(root);
+
+    const searchInput = byId("quick-search-input");
+    const suggestionBox = byId("quick-search-suggestions");
+    const cartBtn = byId("quick-cart-btn");
+    const cartPopover = byId("quick-cart-popover");
+    const cartContent = byId("quick-cart-content");
+
+    let suggestionTimer = null;
+    searchInput.addEventListener("input", () => {
+      const query = searchInput.value.trim();
+      if (suggestionTimer) clearTimeout(suggestionTimer);
+      if (!query) {
+        suggestionBox.style.display = "none";
+        suggestionBox.innerHTML = "";
+        return;
+      }
+      suggestionTimer = setTimeout(async () => {
+        try {
+          const data = await request(API + "/catalog/suggest/?q=" + encodeURIComponent(query), { guest: false });
+          if (!Array.isArray(data) || !data.length) {
+            suggestionBox.style.display = "none";
+            suggestionBox.innerHTML = "";
+            return;
+          }
+          suggestionBox.innerHTML = data
+            .map((name) => `<a class="quick-suggestion-item" href="/search/?q=${encodeURIComponent(name)}">${esc(name)}</a>`)
+            .join("");
+          suggestionBox.style.display = "block";
+        } catch (_) {
+          suggestionBox.style.display = "none";
+        }
+      }, 250);
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!root.contains(event.target)) {
+        suggestionBox.style.display = "none";
+      }
+    });
+
+    cartBtn.addEventListener("click", async () => {
+      const visible = cartPopover.style.display === "block";
+      if (visible) {
+        cartPopover.style.display = "none";
+        return;
+      }
+      cartPopover.style.display = "block";
+      cartContent.textContent = "Loading cart...";
+      try {
+        const cart = await request(API + "/commerce/cart/", { auth: true });
+        if (!cart.items || !cart.items.length) {
+          cartContent.innerHTML = "<div class='muted'>Cart is empty.</div>";
+          return;
+        }
+        cartContent.innerHTML = `
+          <div class="muted" style="margin-bottom:6px;">${cart.item_count} items • subtotal ${fmtMoney(cart.subtotal)}</div>
+          <ul style="margin:0;padding-left:18px;">
+            ${cart.items
+              .slice(0, 5)
+              .map((item) => `<li>${esc(item.name)} x ${item.quantity} • ${fmtMoney(item.line_total)}</li>`)
+              .join("")}
+          </ul>
+          <div style="margin-top:8px;"><a class="btn-link" href="/cart/">Open full cart</a></div>
+        `;
+      } catch (err) {
+        cartContent.textContent = errorText(err);
+      }
+    });
+  }
+
+  const API = "/api";
+
+  function initCookieConsent() {
+    const key = "cookie_consent";
+    const current = localStorage.getItem(key);
+    if (current === "accepted" || current === "declined") {
+      return current === "accepted";
+    }
+
+    const banner = document.createElement("div");
+    banner.className = "cookie-banner";
+    banner.innerHTML = `
+      <div>
+        <strong>Cookie consent</strong>
+        <div class="muted">We use cookies/local storage for cart persistence, login state, and security controls.</div>
+      </div>
+      <div class="btn-row">
+        <button id="cookie-accept-btn">Accept</button>
+        <button class="secondary" id="cookie-decline-btn">Decline</button>
+      </div>
+    `;
+    document.body.appendChild(banner);
+
+    const accept = () => {
+      localStorage.setItem(key, "accepted");
+      banner.remove();
+    };
+    const decline = () => {
+      localStorage.setItem(key, "declined");
+      setAccessToken("");
+      setGuestToken("");
+      banner.remove();
+    };
+    byId("cookie-accept-btn").addEventListener("click", accept);
+    byId("cookie-decline-btn").addEventListener("click", decline);
+    return false;
+  }
+
+  if (typeof window !== "undefined") {
+    window.addEventListener("DOMContentLoaded", () => {
+      const consentAccepted = initCookieConsent();
+      if (consentAccepted) {
+        initGlobalQuickUX();
+      }
+    });
+  }
+
   window.ShopUI = {
-    API: "/api",
+    API,
     setAccessToken,
     getAccessToken,
     getGuestToken,

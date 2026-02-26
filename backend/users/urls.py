@@ -7,6 +7,8 @@ from .views import (
     GoogleCodeLoginView,
     GoogleTokenLoginView,
     CurrentUserView,
+    AdminUserListView,
+    AdminUserRoleUpdateView,
     RecaptchaSiteKeyView,
     LoginView,
     LogoutView,
@@ -34,4 +36,6 @@ urlpatterns = [
     path("oauth/google-client-id/", GoogleClientIdView.as_view(), name="google_client_id"),
     path("recaptcha-site-key/", RecaptchaSiteKeyView.as_view(), name="recaptcha_site_key"),
     path("me/", CurrentUserView.as_view(), name="current_user"),
+    path("admin/users/", AdminUserListView.as_view(), name="admin_user_list"),
+    path("admin/users/<int:user_id>/role/", AdminUserRoleUpdateView.as_view(), name="admin_user_role_update"),
 ]

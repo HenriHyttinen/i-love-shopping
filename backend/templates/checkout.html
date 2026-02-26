@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Checkout | Hardware Shop</title>
+  <meta name="description" content="Complete checkout with shipping details, payment method selection, order summary, and clear validation messages.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -12,13 +13,14 @@
   <script src="https://js.stripe.com/v3/" async defer></script>
 </head>
 <body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
 <header>
   <div class="nav-wrap">
     <div>
       <div class="brand">Hardware Shop</div>
       <div class="footer-note">Checkout Flow</div>
     </div>
-    <nav>
+    <nav aria-label="Primary">
       <a href="/">Home</a>
       <a href="/cart/">Cart</a>
       <a class="active" href="/checkout/">Checkout</a>
@@ -35,7 +37,7 @@
   </div>
 </header>
 
-<main>
+<main id="main-content" tabindex="-1">
   <section class="panel">
     <h1>Checkout</h1>
     <p id="checkout-auth-copy" class="muted">Checking account status...</p>

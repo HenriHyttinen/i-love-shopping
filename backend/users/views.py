@@ -22,6 +22,7 @@ from .serializers import (
     TwoFAVerifySerializer,
 )
 from .models import AccessTokenBlocklist
+from .permissions import IsAdminWith2FA
 from allauth.account.models import EmailAddress
 
 
@@ -269,6 +270,52 @@ class CurrentUserView(APIView):
                 "id": user.id,
                 "email": user.email,
                 "full_name": user.full_name,
+                "role": user.role,
+                "is_staff": bool(user.is_staff),
+                "is_2fa_enabled": bool(user.is_2fa_enabled),
+            }
+        )
+
+
+class AdminUserListView(APIView):
+    permission_classes = [IsAdminWith2FA]
+
+    def get(self, request):
+        users = get_user_model().objects.all().order_by("email")
+        return Response(
+            [
+                {
+                    "id": user.id,
+                    "email": user.email,
+                    "full_name": user.full_name,
+                    "role": user.role,
+                    "is_staff": bool(user.is_staff),
+                    "is_2fa_enabled": bool(user.is_2fa_enabled),
+                }
+                for user in users
+            ]
+        )
+
+
+class AdminUserRoleUpdateView(APIView):
+    permission_classes = [IsAdminWith2FA]
+
+    def post(self, request, user_id):
+        user = get_user_model().objects.filter(id=user_id).first()
+        if not user:
+            return Response({"detail": "User not found."}, status=404)
+        role = str(request.data.get("role", "")).strip()
+        valid_roles = {choice[0] for choice in get_user_model().ROLE_CHOICES}
+        if role not in valid_roles:
+            return Response({"detail": "Invalid role."}, status=400)
+        user.role = role
+        user.is_staff = role in {get_user_model().ROLE_ADMIN, get_user_model().ROLE_SUPPORT, get_user_model().ROLE_SALES}
+        user.save(update_fields=["role", "is_staff"])
+        return Response(
+            {
+                "id": user.id,
+                "email": user.email,
+                "role": user.role,
                 "is_staff": bool(user.is_staff),
             }
         )

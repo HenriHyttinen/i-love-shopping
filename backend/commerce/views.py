@@ -15,8 +15,13 @@ from .serializers import (
     CartItemMutationSerializer,
     CartItemUpdateSerializer,
     CheckoutSerializer,
+    DeliveryOptionSerializer,
+    OrderStatusUpdateSerializer,
     OrderSerializer,
+    RefundRequestSerializer,
+    RefundStatusUpdateSerializer,
 )
+from users.permissions import IsAdminWith2FA
 from .services import (
     cart_totals,
     consume_payment_messages,
@@ -27,6 +32,7 @@ from .services import (
     publish_payment_message,
     recommended_products,
 )
+from .models import DeliveryOption, RefundRequest
 
 logger = logging.getLogger(__name__)
 
@@ -159,10 +165,17 @@ class CheckoutSummaryView(APIView):
         guest_token = request.headers.get("X-Guest-Cart-Token", "").strip()
         cart = get_or_create_cart(user=request.user if request.user.is_authenticated else None, guest_token=guest_token)
         payload = cart_totals(cart)
-        payload["shipping_options"] = [
-            {"code": "standard", "label": "Standard", "cost": "7.90"},
-            {"code": "express", "label": "Express", "cost": "18.90"},
-        ]
+        configured_options = DeliveryOption.objects.filter(is_active=True).order_by("label")
+        if configured_options.exists():
+            payload["shipping_options"] = [
+                {"code": option.code, "label": option.label, "cost": str(option.cost)}
+                for option in configured_options
+            ]
+        else:
+            payload["shipping_options"] = [
+                {"code": "standard", "label": "Standard", "cost": "7.90"},
+                {"code": "express", "label": "Express", "cost": "18.90"},
+            ]
         payload["guest_cart_token"] = cart.guest_token if not request.user.is_authenticated else ""
         return Response(payload)
 
@@ -394,3 +407,98 @@ class OrderProcessView(APIView):
         order.save(update_fields=["is_processed", "updated_at"])
         OrderStatusEvent.objects.create(order=order, status=order.status, note="Order marked as processed")
         return Response({"detail": "Order marked as processed."})
+
+
+class AdminDeliveryOptionListCreateView(APIView):
+    permission_classes = [IsAdminWith2FA]
+
+    def get(self, request):
+        queryset = DeliveryOption.objects.all().order_by("label")
+        return Response(DeliveryOptionSerializer(queryset, many=True).data)
+
+    def post(self, request):
+        serializer = DeliveryOptionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=201)
+
+
+class AdminDeliveryOptionDetailView(APIView):
+    permission_classes = [IsAdminWith2FA]
+
+    def patch(self, request, option_id):
+        option = DeliveryOption.objects.filter(id=option_id).first()
+        if not option:
+            return Response({"detail": "Delivery option not found."}, status=404)
+        serializer = DeliveryOptionSerializer(option, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, option_id):
+        option = DeliveryOption.objects.filter(id=option_id).first()
+        if not option:
+            return Response({"detail": "Delivery option not found."}, status=404)
+        option.delete()
+        return Response(status=204)
+
+
+class AdminOrderStatusUpdateView(APIView):
+    permission_classes = [IsAdminWith2FA]
+
+    @transaction.atomic
+    def post(self, request, order_id):
+        serializer = OrderStatusUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        order = Order.objects.select_for_update().filter(id=order_id).first()
+        if not order:
+            return Response({"detail": "Order not found."}, status=404)
+        order.status = serializer.validated_data["status"]
+        order.save(update_fields=["status", "updated_at"])
+        OrderStatusEvent.objects.create(
+            order=order,
+            status=order.status,
+            note=serializer.validated_data.get("note", "").strip() or "Status updated by admin",
+        )
+        return Response(OrderSerializer(order).data)
+
+
+class RefundRequestListCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        queryset = RefundRequest.objects.filter(order__user=request.user).select_related("order", "requested_by")
+        return Response(RefundRequestSerializer(queryset, many=True).data)
+
+    def post(self, request):
+        order_id = request.data.get("order")
+        order = Order.objects.filter(id=order_id, user=request.user).first()
+        if not order:
+            return Response({"detail": "Order not found."}, status=404)
+        serializer = RefundRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(requested_by=request.user, order=order)
+        return Response(serializer.data, status=201)
+
+
+class AdminRefundListView(APIView):
+    permission_classes = [IsAdminWith2FA]
+
+    def get(self, request):
+        queryset = RefundRequest.objects.select_related("order", "requested_by").all()
+        return Response(RefundRequestSerializer(queryset, many=True).data)
+
+
+class AdminRefundStatusUpdateView(APIView):
+    permission_classes = [IsAdminWith2FA]
+
+    def post(self, request, refund_id):
+        serializer = RefundStatusUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        refund = RefundRequest.objects.filter(id=refund_id).first()
+        if not refund:
+            return Response({"detail": "Refund request not found."}, status=404)
+        refund.status = serializer.validated_data["status"]
+        refund.note = serializer.validated_data.get("note", "")
+        refund.save(update_fields=["status", "note", "updated_at"])
+        return Response(RefundRequestSerializer(refund).data)

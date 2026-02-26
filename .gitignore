@@ -6,3 +6,6 @@ task2_review.md
 ss/
 backend/venv/
 backend/media/
+
+__pycache__/
+*.pyc

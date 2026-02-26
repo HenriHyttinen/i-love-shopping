@@ -29,5 +29,18 @@ services:
     depends_on:
       - postgres
 
+  nginx:
+    image: nginx:1.27-alpine
+    restart: always
+    profiles: ["tls"]
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./ops/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ops/tls/certs:/etc/nginx/certs:ro
+    depends_on:
+      - backend
+
 volumes:
   postgres_data:

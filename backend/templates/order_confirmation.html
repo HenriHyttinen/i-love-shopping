@@ -1,0 +1,42 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Order Confirmation | Hardware Shop</title>
+  <meta name="description" content="View your order confirmation, order ID, reference number, and estimated delivery details.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'ui.css' %}">
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<header>
+  <div class="nav-wrap">
+    <div>
+      <div class="brand">Hardware Shop</div>
+      <div class="footer-note">Order Confirmation</div>
+    </div>
+    <nav aria-label="Primary">
+      <a href="/">Home</a>
+      <a href="/products/">Products</a>
+      <a href="/orders/">Orders</a>
+      <a href="/account/">Account</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main-content" tabindex="-1">
+  <section class="panel">
+    <h1>Order Confirmation</h1>
+    <div id="confirm-status" class="status info">Loading latest order...</div>
+    <div id="confirm-content" class="muted" style="margin-top:10px;">No order details available.</div>
+  </section>
+</main>
+
+<script src="{% static 'ui.js' %}"></script>
+<script src="{% static 'order_confirmation.js' %}"></script>
+</body>
+</html>

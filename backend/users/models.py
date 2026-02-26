@@ -20,8 +20,21 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
+    ROLE_CUSTOMER = "customer"
+    ROLE_ADMIN = "admin"
+    ROLE_SUPPORT = "support"
+    ROLE_SALES = "sales"
+
+    ROLE_CHOICES = [
+        (ROLE_CUSTOMER, "Customer"),
+        (ROLE_ADMIN, "Admin"),
+        (ROLE_SUPPORT, "Support"),
+        (ROLE_SALES, "Sales"),
+    ]
+
     email = models.EmailField(unique=True)
     full_name = models.CharField(max_length=120, blank=True)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=ROLE_CUSTOMER)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)

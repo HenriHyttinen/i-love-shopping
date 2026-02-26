@@ -7,12 +7,18 @@ from .views import (
     CheckoutPlaceOrderView,
     CheckoutPrefillView,
     CheckoutSummaryView,
+    AdminDeliveryOptionDetailView,
+    AdminDeliveryOptionListCreateView,
+    AdminOrderStatusUpdateView,
+    AdminRefundListView,
+    AdminRefundStatusUpdateView,
     OrderCancelView,
     OrderDetailView,
     OrderListView,
     OrderProcessView,
     PaymentCallbackSimulationView,
     PaymentConfigView,
+    RefundRequestListCreateView,
 )
 
 urlpatterns = [
@@ -28,4 +34,10 @@ urlpatterns = [
     path("orders/<int:order_id>/", OrderDetailView.as_view(), name="commerce_order_detail"),
     path("orders/<int:order_id>/cancel/", OrderCancelView.as_view(), name="commerce_order_cancel"),
     path("orders/<int:order_id>/process/", OrderProcessView.as_view(), name="commerce_order_process"),
+    path("refunds/", RefundRequestListCreateView.as_view(), name="commerce_refund_list_create"),
+    path("admin/delivery-options/", AdminDeliveryOptionListCreateView.as_view(), name="commerce_admin_delivery_options"),
+    path("admin/delivery-options/<int:option_id>/", AdminDeliveryOptionDetailView.as_view(), name="commerce_admin_delivery_option_detail"),
+    path("admin/orders/<int:order_id>/status/", AdminOrderStatusUpdateView.as_view(), name="commerce_admin_order_status"),
+    path("admin/refunds/", AdminRefundListView.as_view(), name="commerce_admin_refund_list"),
+    path("admin/refunds/<int:refund_id>/status/", AdminRefundStatusUpdateView.as_view(), name="commerce_admin_refund_status"),
 ]

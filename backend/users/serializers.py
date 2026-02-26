@@ -67,6 +67,8 @@ class LoginTwoFARequiredSerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid credentials")
         if not user.check_password(attrs["password"]):
             raise serializers.ValidationError("Invalid credentials")
+        if user.is_staff and not user.is_2fa_enabled:
+            raise serializers.ValidationError("Admin accounts must enable 2FA before login.")
         if user.is_2fa_enabled:
             code = attrs.get("code")
             if not code:

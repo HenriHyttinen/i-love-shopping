@@ -303,8 +303,16 @@
         U.setStatus("checkout-status", `${failureText} Cart items were kept so you can retry.`, "warn");
       } else if (notifyState === "failed") {
         U.setStatus("checkout-status", "Payment successful, but email notification failed.", "warn");
+        localStorage.setItem("last_order_confirmation", JSON.stringify(data));
+        setTimeout(() => {
+          location.href = "/order-confirmation/";
+        }, 600);
       } else {
         U.setStatus("checkout-status", "Payment successful. Order completed.", "ok");
+        localStorage.setItem("last_order_confirmation", JSON.stringify(data));
+        setTimeout(() => {
+          location.href = "/order-confirmation/";
+        }, 600);
       }
     } catch (err) {
       U.setStatus("checkout-status", U.errorText(err), "error");

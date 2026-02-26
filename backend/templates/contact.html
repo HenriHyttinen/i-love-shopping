@@ -1,0 +1,43 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contact Support | Hardware Shop</title>
+  <meta name="description" content="Contact support with order and account questions using the built-in customer help form.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'ui.css' %}">
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<header>
+  <div class="nav-wrap">
+    <div><div class="brand">Hardware Shop</div><div class="footer-note">Support</div></div>
+    <nav aria-label="Primary">
+      <a href="/">Home</a><a href="/search/">Search</a><a href="/cart/">Cart</a><a href="/orders/">Orders</a>
+      <a class="active" href="/contact/">Contact</a><a href="/about/">About</a>
+    </nav>
+  </div>
+</header>
+<main id="main-content" tabindex="-1">
+  <section class="panel" style="max-width:760px;margin:20px auto;">
+    <h1>Contact Support</h1>
+    <div class="grid">
+      <div><label>Name</label><input id="contact-name" type="text"></div>
+      <div><label>Email</label><input id="contact-email" type="email"></div>
+      <div style="grid-column:1/-1;"><label>Subject</label><input id="contact-subject" type="text"></div>
+      <div style="grid-column:1/-1;"><label>Message</label><textarea id="contact-message" rows="6"></textarea></div>
+    </div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button id="contact-send-btn">Send Message</button>
+    </div>
+    <div id="contact-status" class="status info">Ready.</div>
+  </section>
+</main>
+<script src="{% static 'ui.js' %}"></script>
+<script src="{% static 'contact.js' %}"></script>
+</body>
+</html>

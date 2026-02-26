@@ -1,0 +1,85 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Product Details | Hardware Shop</title>
+  <meta name="description" content="Read complete product details, ratings, customer reviews, and related recommendations before purchase.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'ui.css' %}">
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<header>
+  <div class="nav-wrap">
+    <div>
+      <div class="brand">Hardware Shop</div>
+      <div class="footer-note">Product Detail</div>
+    </div>
+    <nav aria-label="Primary">
+      <a href="/">Home</a>
+      <a href="/cart/">Cart</a>
+      <a href="/checkout/">Checkout</a>
+      <a href="/orders/">Orders</a>
+      <span id="nav-guest">
+        <a href="/login/">Login</a>
+        <a href="/register/">Register</a>
+      </span>
+      <span id="nav-member" style="display:none;">
+        <a href="/account/">Account</a>
+        <a href="#" id="nav-logout">Logout</a>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<main id="main-content" tabindex="-1">
+  <section class="panel">
+    <div id="pdp-status" class="status info">Loading product...</div>
+  </section>
+
+  <section class="panel" id="pdp-main"></section>
+
+  <section class="panel">
+    <h2>Write a Review</h2>
+    <div class="grid">
+      <div>
+        <label>Rating</label>
+        <select id="review-rating">
+          <option value="5">5 - Excellent</option>
+          <option value="4">4 - Very good</option>
+          <option value="3">3 - Good</option>
+          <option value="2">2 - Fair</option>
+          <option value="1">1 - Poor</option>
+        </select>
+      </div>
+      <div style="grid-column: 1 / -1;">
+        <label>Review text</label>
+        <textarea id="review-comment" rows="4" placeholder="Share your experience with this product"></textarea>
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button id="review-submit-btn">Submit Review</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Customer Reviews</h2>
+    <div id="review-list" class="grid"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Related Products</h2>
+    <div id="related-products" class="product-grid"></div>
+  </section>
+</main>
+
+<script src="{% static 'ui.js' %}"></script>
+<script src="{% static 'auth.js' %}"></script>
+<script src="{% static 'product_detail.js' %}"></script>
+<script>if (window.ShopAuth) window.ShopAuth.refreshAuthNav();</script>
+</body>
+</html>

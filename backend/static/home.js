@@ -54,6 +54,9 @@
             ${ratingMarkup(p.rating)}
             <div style="margin:8px 0"><span class="badge">Stock ${p.stock_quantity}</span></div>
             <div style="font-weight:700; margin-bottom:8px">${U.fmtMoney(p.price)}</div>
+            <div style="margin-bottom:8px;">
+              <a class="btn-link" style="width:100%;text-align:center;" href="/products/${p.id}/">View Details</a>
+            </div>
             <div class="grid" style="grid-template-columns: 1fr 120px;">
               <input type="number" min="1" value="1" data-qty="${p.id}">
               <button data-add="${p.id}">Add</button>

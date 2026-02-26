@@ -1,0 +1,86 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Product Listing | Hardware Shop</title>
+  <meta name="description" content="Browse hardware products with filters, sorting, list/grid view toggle, ratings, and pagination.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'ui.css' %}">
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<header>
+  <div class="nav-wrap">
+    <div>
+      <div class="brand">Hardware Shop</div>
+      <div class="footer-note">Product Listing</div>
+    </div>
+    <nav aria-label="Primary">
+      <a href="/">Home</a>
+      <a class="active" href="/products/">Products</a>
+      <a href="/search/">Search</a>
+      <a href="/cart/">Cart</a>
+      <a href="/checkout/">Checkout</a>
+      <a href="/orders/">Orders</a>
+      <span id="nav-guest">
+        <a href="/login/">Login</a>
+        <a href="/register/">Register</a>
+      </span>
+      <span id="nav-member" style="display:none;">
+        <a href="/account/">Account</a>
+        <a href="#" id="nav-logout">Logout</a>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<main id="main-content" tabindex="-1">
+  <section class="panel">
+    <h1>Product Listing</h1>
+    <div class="grid">
+      <div><label for="plp-search">Search</label><input id="plp-search" type="text" placeholder="gpu"></div>
+      <div><label for="plp-category">Category</label><input id="plp-category" type="text" placeholder="graphics-cards"></div>
+      <div><label for="plp-brand">Brand</label><input id="plp-brand" type="text" placeholder="NexCore"></div>
+      <div><label for="plp-min">Min price</label><input id="plp-min" type="number" min="0" placeholder="100"></div>
+      <div><label for="plp-max">Max price</label><input id="plp-max" type="number" min="0" placeholder="1000"></div>
+      <div>
+        <label for="plp-ordering">Sort</label>
+        <select id="plp-ordering">
+          <option value="relevance">relevance</option>
+          <option value="price">price</option>
+          <option value="-price">price desc</option>
+          <option value="rating">rating</option>
+          <option value="-rating">rating desc</option>
+          <option value="name">name</option>
+          <option value="-name">name desc</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button id="plp-search-btn">Search</button>
+      <button class="secondary" id="plp-toggle-view" data-view="grid">Switch to list view</button>
+    </div>
+    <p id="plp-result-count" class="muted">0 results</p>
+    <div id="plp-status" class="status info">Ready.</div>
+  </section>
+
+  <section class="panel">
+    <div id="plp-products" class="product-grid"></div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button class="secondary" id="plp-prev-btn">Previous</button>
+      <span id="plp-page-indicator" class="badge">Page 1 / 1</span>
+      <button class="secondary" id="plp-next-btn">Next</button>
+    </div>
+  </section>
+</main>
+
+<script src="{% static 'ui.js' %}"></script>
+<script src="{% static 'auth.js' %}"></script>
+<script src="{% static 'product_list.js' %}"></script>
+<script>if (window.ShopAuth) window.ShopAuth.refreshAuthNav();</script>
+</body>
+</html>

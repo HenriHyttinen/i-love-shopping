@@ -1,5 +1,6 @@
 import base64
 import tempfile
+from decimal import Decimal
 from io import BytesIO
 
 from django.test import TestCase, override_settings
@@ -8,6 +9,7 @@ from rest_framework.test import APIClient
 from PIL import Image
 
 from catalog.models import Brand, Category, Product
+from commerce.models import Order
 from users.models import User
 
 
@@ -183,3 +185,120 @@ class CatalogTests(TestCase):
             format="multipart",
         )
         self.assertEqual(response.status_code, 401)
+
+    def _create_paid_order_with_product(self, *, user, product, quantity=1):
+        order = Order.objects.create(
+            user=user,
+            status=Order.STATUS_PAYMENT_SUCCESSFUL,
+            payment_method="stripe_sandbox",
+            shipping_option=Order.SHIPPING_STANDARD,
+            subtotal=product.price * quantity,
+            shipping_cost=Decimal("7.90"),
+            total=(product.price * quantity) + Decimal("7.90"),
+        )
+        order.items.create(
+            product=product,
+            product_name=product.name,
+            quantity=quantity,
+            unit_price=product.price,
+            line_total=product.price * quantity,
+        )
+        return order
+
+    def test_review_requires_purchase(self):
+        user = User.objects.create_user(email="buyer-a@example.com", password="StrongPass123!")
+        product = Product.objects.first()
+        self.client.force_authenticate(user=user)
+        response = self.client.post(
+            f"/api/catalog/products/{product.id}/reviews/",
+            {"rating": 5, "comment": "Great product!"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Only customers who bought this product", str(response.data))
+
+    def test_review_create_updates_average_rating(self):
+        product = Product.objects.first()
+        user_a = User.objects.create_user(email="buyer-a@example.com", password="StrongPass123!")
+        user_b = User.objects.create_user(email="buyer-b@example.com", password="StrongPass123!")
+        self._create_paid_order_with_product(user=user_a, product=product)
+        self._create_paid_order_with_product(user=user_b, product=product)
+
+        self.client.force_authenticate(user=user_a)
+        r1 = self.client.post(
+            f"/api/catalog/products/{product.id}/reviews/",
+            {"rating": 5, "comment": "Excellent"},
+            format="json",
+        )
+        self.assertEqual(r1.status_code, 201)
+        product.refresh_from_db()
+        self.assertEqual(str(product.rating), "5.00")
+
+        self.client.force_authenticate(user=user_b)
+        r2 = self.client.post(
+            f"/api/catalog/products/{product.id}/reviews/",
+            {"rating": 3, "comment": "Okay"},
+            format="json",
+        )
+        self.assertEqual(r2.status_code, 201)
+        product.refresh_from_db()
+        self.assertEqual(str(product.rating), "4.00")
+
+    def test_review_one_per_user_per_product(self):
+        product = Product.objects.first()
+        user = User.objects.create_user(email="buyer-c@example.com", password="StrongPass123!")
+        self._create_paid_order_with_product(user=user, product=product)
+        self.client.force_authenticate(user=user)
+        first = self.client.post(
+            f"/api/catalog/products/{product.id}/reviews/",
+            {"rating": 4, "comment": "Solid"},
+            format="json",
+        )
+        self.assertEqual(first.status_code, 201)
+        second = self.client.post(
+            f"/api/catalog/products/{product.id}/reviews/",
+            {"rating": 5, "comment": "Updating"},
+            format="json",
+        )
+        self.assertEqual(second.status_code, 400)
+        self.assertIn("already reviewed", str(second.data))
+
+    def test_review_helpful_vote_sorts_by_helpfulness_and_toggles(self):
+        product = Product.objects.first()
+        reviewer_a = User.objects.create_user(email="reviewer-a@example.com", password="StrongPass123!")
+        reviewer_b = User.objects.create_user(email="reviewer-b@example.com", password="StrongPass123!")
+        voter = User.objects.create_user(email="voter@example.com", password="StrongPass123!")
+        self._create_paid_order_with_product(user=reviewer_a, product=product)
+        self._create_paid_order_with_product(user=reviewer_b, product=product)
+
+        self.client.force_authenticate(user=reviewer_a)
+        rev_a = self.client.post(
+            f"/api/catalog/products/{product.id}/reviews/",
+            {"rating": 4, "comment": "Review A"},
+            format="json",
+        ).data
+        self.client.force_authenticate(user=reviewer_b)
+        rev_b = self.client.post(
+            f"/api/catalog/products/{product.id}/reviews/",
+            {"rating": 5, "comment": "Review B"},
+            format="json",
+        ).data
+
+        self.client.force_authenticate(user=voter)
+        vote = self.client.post(f"/api/catalog/reviews/{rev_b['id']}/helpful/", {}, format="json")
+        self.assertEqual(vote.status_code, 201)
+        self.assertTrue(vote.data["voted_helpful"])
+
+        listing = self.client.get(f"/api/catalog/products/{product.id}/reviews/")
+        self.assertEqual(listing.status_code, 200)
+        self.assertEqual(listing.data[0]["id"], rev_b["id"])
+        self.assertEqual(listing.data[0]["helpful_votes"], 1)
+
+        unvote = self.client.post(f"/api/catalog/reviews/{rev_b['id']}/helpful/", {}, format="json")
+        self.assertEqual(unvote.status_code, 200)
+        self.assertFalse(unvote.data["voted_helpful"])
+
+        listing_after = self.client.get(f"/api/catalog/products/{product.id}/reviews/")
+        self.assertEqual(listing_after.status_code, 200)
+        target = [r for r in listing_after.data if r["id"] == rev_b["id"]][0]
+        self.assertEqual(target["helpful_votes"], 0)

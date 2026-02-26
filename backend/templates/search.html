@@ -1,0 +1,52 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Search Products | Hardware Shop</title>
+  <meta name="description" content="Search product catalog with filters, sorting, result count, and pagination controls.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'ui.css' %}">
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<header>
+  <div class="nav-wrap">
+    <div><div class="brand">Hardware Shop</div><div class="footer-note">Search Results</div></div>
+    <nav aria-label="Primary">
+      <a href="/">Home</a><a class="active" href="/search/">Search</a><a href="/cart/">Cart</a><a href="/checkout/">Checkout</a><a href="/orders/">Orders</a>
+    </nav>
+  </div>
+</header>
+<main id="main-content" tabindex="-1">
+  <section class="panel">
+    <h1>Search</h1>
+    <div class="grid">
+      <div><label>Query</label><input id="search-q" type="text"></div>
+      <div><label>Brand</label><input id="search-brand" type="text"></div>
+      <div><label>Category</label><input id="search-category" type="text"></div>
+      <div><label>Min price</label><input id="search-min" type="number"></div>
+      <div><label>Max price</label><input id="search-max" type="number"></div>
+      <div><label>Sort</label><select id="search-order"><option value="relevance">relevance</option><option value="price">price</option><option value="-price">price desc</option><option value="rating">rating</option><option value="name">name</option></select></div>
+    </div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button id="search-btn">Search</button>
+      <button class="secondary" id="prev-page-btn">Prev</button>
+      <button class="secondary" id="next-page-btn">Next</button>
+      <span id="result-count" class="badge">0 results</span>
+      <span id="page-indicator" class="badge">Page 1</span>
+    </div>
+    <div id="search-status" class="status info">Ready.</div>
+  </section>
+
+  <section class="panel">
+    <div id="search-results" class="product-grid"></div>
+  </section>
+</main>
+<script src="{% static 'ui.js' %}"></script>
+<script src="{% static 'search.js' %}"></script>
+</body>
+</html>

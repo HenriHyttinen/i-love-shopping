@@ -1,4 +1,9 @@
+from decimal import Decimal, ROUND_HALF_UP
+
+from django.conf import settings
 from django.db import models
+from django.db.models import Avg
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 
 class Category(models.Model):
@@ -70,3 +75,43 @@ class ProductSpec(models.Model):
 
     def __str__(self):
         return f"{self.product.name} image"
+
+
+class Review(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="reviews")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="reviews")
+    rating = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    comment = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("product", "user")
+        ordering = ("-created_at",)
+
+    @staticmethod
+    def refresh_product_rating(product_id: int) -> None:
+        avg_value = Review.objects.filter(product_id=product_id).aggregate(avg=Avg("rating"))["avg"]
+        if avg_value is None:
+            normalized = Decimal("0.00")
+        else:
+            normalized = Decimal(str(avg_value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        Product.objects.filter(id=product_id).update(rating=normalized)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        Review.refresh_product_rating(self.product_id)
+
+    def delete(self, *args, **kwargs):
+        product_id = self.product_id
+        super().delete(*args, **kwargs)
+        Review.refresh_product_rating(product_id)
+
+
+class ReviewHelpfulVote(models.Model):
+    review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name="helpful_votes")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="review_helpful_votes")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("review", "user")

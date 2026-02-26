@@ -14,6 +14,7 @@ from .crypto import decrypt_json, encrypt_json
 from .models import (
     Cart,
     CartItem,
+    DeliveryOption,
     Order,
     OrderItem,
     OrderStatusEvent,
@@ -103,6 +104,13 @@ def cart_totals(cart: Cart) -> dict:
         "item_count": len(items),
         "items": items,
     }
+
+
+def get_shipping_cost(shipping_option: str) -> Decimal | None:
+    option = DeliveryOption.objects.filter(code=shipping_option, is_active=True).first()
+    if option:
+        return option.cost
+    return SHIPPING_COSTS.get(shipping_option)
 
 
 def recommended_products(cart: Cart, limit: int = 4) -> list:
@@ -389,7 +397,7 @@ def place_order_from_cart(
             raise ValueError(f"Out of stock for {product.name}.")
         subtotal += item.unit_price * item.quantity
 
-    shipping_cost = SHIPPING_COSTS.get(shipping_option)
+    shipping_cost = get_shipping_cost(shipping_option)
     if shipping_cost is None:
         raise ValueError("Invalid shipping option.")
 

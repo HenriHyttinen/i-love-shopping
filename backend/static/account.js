@@ -11,7 +11,11 @@
       }
       U.byId("acc-name").textContent = user.full_name || "-";
       U.byId("acc-email").textContent = user.email || "-";
-      U.byId("acc-role").textContent = user.is_staff ? "Staff" : "Customer";
+      U.byId("acc-role").textContent = user.role || (user.is_staff ? "staff" : "customer");
+      const adminBtn = U.byId("go-admin-panel");
+      if (adminBtn && user.is_staff) {
+        adminBtn.style.display = "inline-block";
+      }
       U.setStatus("account-status", "Account loaded.", "ok");
     } catch (err) {
       U.setStatus("account-status", JSON.stringify(err), "error");
@@ -24,6 +28,12 @@
   U.byId("go-checkout-guest").addEventListener("click", () => {
     location.href = "/checkout/";
   });
+  const adminBtn = U.byId("go-admin-panel");
+  if (adminBtn) {
+    adminBtn.addEventListener("click", () => {
+      location.href = "/admin-panel/";
+    });
+  }
 
   loadAccount();
 })();

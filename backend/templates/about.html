@@ -1,0 +1,45 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>About Hardware Shop</title>
+  <meta name="description" content="Learn about Hardware Shop mission, team, and social channels.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'ui.css' %}">
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<header>
+  <div class="nav-wrap">
+    <div><div class="brand">Hardware Shop</div><div class="footer-note">Company</div></div>
+    <nav aria-label="Primary">
+      <a href="/">Home</a><a href="/search/">Search</a><a href="/contact/">Contact</a><a class="active" href="/about/">About</a>
+    </nav>
+  </div>
+</header>
+<main id="main-content" tabindex="-1">
+  <section class="panel">
+    <h1>About Us</h1>
+    <p class="muted">Hardware Shop builds a clean, secure ecommerce experience for high-performance PC components.</p>
+    <h2>Mission</h2>
+    <p class="muted">Make technical shopping easy with trustworthy product information, transparent checkout, and reliable order tracking.</p>
+    <h2>Team</h2>
+    <ul>
+      <li>Commerce Engineering</li>
+      <li>Catalog Operations</li>
+      <li>Customer Support</li>
+    </ul>
+    <h2>Social</h2>
+    <div class="btn-row">
+      <a class="btn-link" href="https://github.com" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a class="btn-link" href="https://linkedin.com" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+      <a class="btn-link" href="https://x.com" target="_blank" rel="noopener noreferrer">X</a>
+    </div>
+  </section>
+</main>
+</body>
+</html>

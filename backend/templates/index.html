@@ -5,20 +5,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Hardware Shop | Commerce Demo</title>
+  <meta name="description" content="Hardware Shop home page with featured products, filters, ratings, and quick cart actions.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'ui.css' %}">
 </head>
 <body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
 <header>
   <div class="nav-wrap">
     <div>
       <div class="brand">Hardware Shop</div>
       <div class="footer-note">Project 2 Commerce Demo</div>
     </div>
-    <nav>
+    <nav aria-label="Primary">
       <a class="active" href="/">Home</a>
+      <a href="/products/">Products</a>
+      <a href="/search/">Search</a>
       <a href="/cart/">Cart</a>
       <a href="/checkout/">Checkout</a>
       <a href="/orders/">Orders</a>
@@ -34,7 +38,7 @@
   </div>
 </header>
 
-<main>
+<main id="main-content" tabindex="-1">
   <section class="panel">
     <h1>Hardware Shop</h1>
     <p class="muted">Browse products, add to cart, and checkout as guest or signed-in customer.</p>
