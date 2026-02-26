@@ -54,22 +54,45 @@
 
   async function request(url, opts) {
     const options = opts || {};
-    const fetchOpts = {
-      method: options.method || "GET",
-      headers: headers({ auth: options.auth, guest: options.guest, json: options.json }),
-    };
-    if (options.body !== undefined) {
-      fetchOpts.body = options.json === false ? options.body : JSON.stringify(options.body);
+    function buildFetchOptions(authEnabled) {
+      const out = {
+        method: options.method || "GET",
+        headers: headers({ auth: authEnabled, guest: options.guest, json: options.json }),
+      };
+      if (options.body !== undefined) {
+        out.body = options.json === false ? options.body : JSON.stringify(options.body);
+      }
+      return out;
+    }
+
+    function isInvalidTokenResponse(res, data) {
+      if (!res || res.status !== 401) return false;
+      const detail = String((data && data.detail) || "").toLowerCase();
+      const code = String((data && data.code) || "").toLowerCase();
+      return code === "token_not_valid" || detail.includes("token not valid") || detail.includes("given token not valid");
     }
 
     let res;
+    let data = {};
     try {
-      res = await fetch(url, fetchOpts);
+      res = await fetch(url, buildFetchOptions(!!options.auth));
     } catch (_) {
       throw { detail: "Network error. Please retry." };
     }
 
-    const data = await res.json().catch(() => ({}));
+    data = await res.json().catch(() => ({}));
+
+    // Auto-recover from stale JWT in browser storage.
+    if (options.auth && accessToken && isInvalidTokenResponse(res, data)) {
+      setAccessToken("");
+      try {
+        res = await fetch(url, buildFetchOptions(false));
+        data = await res.json().catch(() => ({}));
+      } catch (_) {
+        throw { detail: "Network error. Please retry." };
+      }
+    }
+
     if (data && Object.prototype.hasOwnProperty.call(data, "guest_cart_token")) {
       setGuestToken(data.guest_cart_token);
     }
