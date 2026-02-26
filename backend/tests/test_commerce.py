@@ -651,6 +651,105 @@ class CommerceTests(TestCase):
         self.assertEqual(checkout.status_code, 400)
         self.assertIn("email", checkout.data)
 
+    def test_checkout_shipping_missing_fields_uses_user_friendly_labels(self):
+        add = self.client.post(
+            "/api/commerce/cart/items/",
+            {"product_id": self.product.id, "quantity": 1},
+            format="json",
+        )
+        token = add.data["guest_cart_token"]
+        payload = {
+            "full_name": "Guest Buyer",
+            "email": "guest@example.com",
+            "phone": "+358401234567",
+            "shipping_address": {
+                "line1": "",
+                "city": "",
+                "state": "Uusimaa",
+                "postal_code": "00100",
+                "country": "",
+            },
+            "shipping_option": "standard",
+            "payment_method": "stripe_sandbox",
+            "payment_token": "tok_success",
+        }
+        checkout = self.client.post(
+            "/api/commerce/checkout/place-order/",
+            payload,
+            format="json",
+            HTTP_X_GUEST_CART_TOKEN=token,
+        )
+        self.assertEqual(checkout.status_code, 400)
+        self.assertIn("shipping_address", checkout.data)
+        msg = str(checkout.data["shipping_address"][0])
+        self.assertIn("Address line 1", msg)
+        self.assertIn("City", msg)
+        self.assertIn("Country", msg)
+
+    def test_checkout_shipping_requires_state_label_for_us(self):
+        add = self.client.post(
+            "/api/commerce/cart/items/",
+            {"product_id": self.product.id, "quantity": 1},
+            format="json",
+        )
+        token = add.data["guest_cart_token"]
+        payload = {
+            "full_name": "Guest Buyer",
+            "email": "guest@example.com",
+            "phone": "+14085550123",
+            "shipping_address": {
+                "line1": "1 Infinite Loop",
+                "city": "Cupertino",
+                "state": "",
+                "postal_code": "95014",
+                "country": "US",
+            },
+            "shipping_option": "standard",
+            "payment_method": "stripe_sandbox",
+            "payment_token": "tok_success",
+        }
+        checkout = self.client.post(
+            "/api/commerce/checkout/place-order/",
+            payload,
+            format="json",
+            HTTP_X_GUEST_CART_TOKEN=token,
+        )
+        self.assertEqual(checkout.status_code, 400)
+        self.assertIn("shipping_address", checkout.data)
+        self.assertIn("State", str(checkout.data["shipping_address"][0]))
+
+    def test_checkout_shipping_invalid_postal_format_message(self):
+        add = self.client.post(
+            "/api/commerce/cart/items/",
+            {"product_id": self.product.id, "quantity": 1},
+            format="json",
+        )
+        token = add.data["guest_cart_token"]
+        payload = {
+            "full_name": "Guest Buyer",
+            "email": "guest@example.com",
+            "phone": "+358401234567",
+            "shipping_address": {
+                "line1": "Main street 1",
+                "city": "Helsinki",
+                "state": "Uusimaa",
+                "postal_code": "x",
+                "country": "FI",
+            },
+            "shipping_option": "standard",
+            "payment_method": "stripe_sandbox",
+            "payment_token": "tok_success",
+        }
+        checkout = self.client.post(
+            "/api/commerce/checkout/place-order/",
+            payload,
+            format="json",
+            HTTP_X_GUEST_CART_TOKEN=token,
+        )
+        self.assertEqual(checkout.status_code, 400)
+        self.assertIn("shipping_address", checkout.data)
+        self.assertIn("Postal code format is invalid", str(checkout.data["shipping_address"][0]))
+
     def test_checkout_rejects_invalid_payment_token_format(self):
         add = self.client.post(
             "/api/commerce/cart/items/",
@@ -754,6 +853,10 @@ class CommerceTests(TestCase):
         )
         self.assertEqual(checkout.status_code, 400)
         self.assertIn("shipping_address", checkout.data)
+        self.assertIn(
+            "Shipping address doesn't match the city/state/postal code.",
+            str(checkout.data["shipping_address"][0]),
+        )
 
     @override_settings(
         ADDRESS_VALIDATION_ENABLED=True,

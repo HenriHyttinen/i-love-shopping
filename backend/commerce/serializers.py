@@ -9,6 +9,33 @@ from .models import Order
 
 PHONE_RE = re.compile(r"^[+0-9()\-\s]{7,20}$")
 POSTAL_RE = re.compile(r"^[A-Za-z0-9\-\s]{3,12}$")
+ADDRESS_FIELD_LABELS = {
+    "line1": "Address line 1",
+    "city": "City",
+    "state": "State",
+    "postal_code": "Postal code",
+    "country": "Country",
+}
+
+
+def _friendly_address_error(detail: str) -> str:
+    text = (detail or "").strip().lower()
+    if "service unavailable" in text:
+        return "Address validation is temporarily unavailable. Please try again in a moment."
+    if "line should include a building number" in text or "line is not valid" in text:
+        return "Address line 1 looks invalid. Include street name and building number."
+    if "state must be a valid state code or name" in text:
+        return "State is invalid for the selected country."
+    if "must be zip format" in text:
+        return "Postal code format is invalid for the selected country."
+    if (
+        "confidence is too low" in text
+        or "does not match" in text
+        or "could not be verified" in text
+        or "could not verify" in text
+    ):
+        return "Shipping address doesn't match the city/state/postal code. Please check the address details."
+    return detail
 
 
 def _country_requires_state(country: str) -> bool:
@@ -65,15 +92,16 @@ class CheckoutSerializer(serializers.Serializer):
             required_fields.append("state")
         missing = [field for field in required_fields if not str(value.get(field, "")).strip()]
         if missing:
-            raise serializers.ValidationError(f"Missing required fields: {', '.join(missing)}")
+            labels = [ADDRESS_FIELD_LABELS.get(field, field) for field in missing]
+            raise serializers.ValidationError(f"Missing required fields: {', '.join(labels)}")
 
         postal_code = str(value.get("postal_code", "")).strip()
         if not POSTAL_RE.match(postal_code):
-            raise serializers.ValidationError("Invalid address format for postal_code.")
+            raise serializers.ValidationError("Postal code format is invalid.")
 
         accuracy = validate_shipping_address_accuracy(value)
         if not accuracy.ok:
-            raise serializers.ValidationError(accuracy.detail)
+            raise serializers.ValidationError(_friendly_address_error(accuracy.detail))
         return value
 
     def validate(self, attrs):
