@@ -6,6 +6,8 @@ task2_review.md
 ss/
 backend/venv/
 backend/media/
+docs/perf/*
+!docs/perf/README.md
 
 __pycache__/
 *.pyc

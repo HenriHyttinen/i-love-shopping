@@ -326,11 +326,15 @@ button.danger {
 .quick-ux {
   position: fixed;
   right: 14px;
-  bottom: 14px;
+  top: 82px;
   z-index: 30;
   display: grid;
   gap: 8px;
   width: min(320px, calc(100vw - 28px));
+}
+
+@media (max-width: 700px) {
+  .quick-ux { top: 92px; }
 }
 
 .quick-search-wrap,
