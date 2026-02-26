@@ -13,7 +13,9 @@ export const options = {
 const BASE_URL = __ENV.BASE_URL || "http://localhost:8000";
 
 export default function () {
-  const search = http.get(`${BASE_URL}/api/catalog/products/?search=rtx&ordering=relevance`);
+  const ip = `10.11.${__VU}.${(__ITER % 250) + 1}`;
+  const req = { headers: { "X-Forwarded-For": ip } };
+  const search = http.get(`${BASE_URL}/api/catalog/products/?search=rtx&ordering=relevance`, req);
   check(search, { "search status 200": (r) => r.status === 200 });
 
   let productId = 1;
@@ -26,7 +28,7 @@ export default function () {
     productId = 1;
   }
 
-  const pdp = http.get(`${BASE_URL}/api/catalog/products/${productId}/`);
+  const pdp = http.get(`${BASE_URL}/api/catalog/products/${productId}/`, req);
   check(pdp, { "pdp status 200": (r) => r.status === 200 });
   sleep(1);
 }

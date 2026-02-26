@@ -7,9 +7,9 @@ This project includes three k6 scenarios:
 
 ## Run with local k6
 ```bash
-k6 run loadtests/k6/browse_catalog.js
-k6 run loadtests/k6/search_and_pdp.js
-k6 run loadtests/k6/cart_checkout.js
+BASE_URL=http://localhost:8000 k6 run loadtests/k6/browse_catalog.js
+BASE_URL=http://localhost:8000 k6 run loadtests/k6/search_and_pdp.js
+BASE_URL=http://localhost:8000 k6 run loadtests/k6/cart_checkout.js
 ```
 
 ## Run with Docker Compose profile

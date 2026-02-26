@@ -13,7 +13,10 @@ export const options = {
 const BASE_URL = __ENV.BASE_URL || "http://localhost:8000";
 
 export default function () {
-  const res = http.get(`${BASE_URL}/api/catalog/products/?ordering=rating`);
+  const ip = `10.10.${__VU}.${(__ITER % 250) + 1}`;
+  const res = http.get(`${BASE_URL}/api/catalog/products/?ordering=rating`, {
+    headers: { "X-Forwarded-For": ip },
+  });
   check(res, {
     "status is 200": (r) => r.status === 200,
     "response has list": (r) => {

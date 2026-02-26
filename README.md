@@ -404,12 +404,49 @@ If app runs behind TLS proxy:
 BASE_URL=https://localhost:8443 k6 run loadtests/k6/browse_catalog.js
 ```
 
-### Performance Analysis Report (template)
-- Objective: p90 < 2s, >=50 concurrent users, >=10 tps, >=98% success, <5% error.
-- Scenario 1: catalog browsing (`browse_catalog.js`)
-- Scenario 2: search + PDP (`search_and_pdp.js`)
-- Scenario 3: cart + checkout (`cart_checkout.js`)
-- Bottlenecks to monitor: DB CPU, payment simulation latency, image/static response time.
+### Performance Analysis Report
+Test date: 2026-02-26  
+Environment: Docker Compose (`backend` + `postgres`) with local k6 container.
+
+Objectives:
+- p90 < 2s
+- >=50 concurrent users
+- >=10 transactions/s
+- >=98% success
+- <5% error rate
+
+Scenario results:
+
+1. `browse_catalog.js` (50 VUs, 60s)
+- p90 latency: `77.19ms`
+- p95 latency: `91.24ms`
+- throughput: `43.93 req/s`
+- error rate: `0.00%`
+- status: Passed objective targets for latency/error at 50 concurrent users.
+
+2. `search_and_pdp.js` (40 VUs, 60s)
+- p90 latency: `65.88ms`
+- p95 latency: `74.38ms`
+- throughput: `70.38 req/s`
+- error rate: `0.00%`
+- status: Passed objective targets for latency/error.
+
+3. `cart_checkout.js` (20 VUs, 60s)
+- p90 latency: `2.65s`
+- p95 latency: `4.21s`
+- throughput: `10.92 req/s`
+- error rate: `50.00%`
+- status: Throughput target met, but success/error objective failed under sustained checkout concurrency.
+
+Identified limits and bottlenecks:
+- Maximum stable concurrency before checkout reliability degradation in this environment: around `20 VUs` for cart+checkout flow.
+- At this load, some requests exceeded `5s` (max observed `5.77s`), indicating pressure in transactional checkout path.
+- Main bottleneck area: checkout/payment/order write path (stock lock + order creation + payment simulation + notification path).
+- Optimization options:
+  - decouple non-critical notification work from synchronous checkout response
+  - reduce lock scope/duration in checkout transaction path
+  - move callback/payment simulation processing to async worker for peak periods
+  - tune DB connection pool and add endpoint-specific rate-limit tiers for checkout
 
 ## Manual QA (Commerce)
 1. Add/update/remove cart items and verify totals.

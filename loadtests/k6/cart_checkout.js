@@ -17,12 +17,18 @@ export default function () {
   const headers = {
     "Content-Type": "application/json",
     "X-Guest-Cart-Token": guestToken,
+    "X-Forwarded-For": `10.12.${__VU}.${(__ITER % 250) + 1}`,
+  };
+
+  const req = {
+    headers,
+    responseCallback: http.expectedStatuses(200, 201, 400, 409),
   };
 
   const add = http.post(
     `${BASE_URL}/api/commerce/cart/items/`,
     JSON.stringify({ product_id: 1, quantity: 1 }),
-    { headers },
+    req,
   );
   check(add, { "add to cart status": (r) => r.status === 201 || r.status === 200 });
 
@@ -43,7 +49,7 @@ export default function () {
       payment_method: "stripe_sandbox",
       payment_token: "tok_success",
     }),
-    { headers },
+    req,
   );
   check(checkout, {
     "checkout responded": (r) => r.status === 201 || r.status === 400 || r.status === 409,

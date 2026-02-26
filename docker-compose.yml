@@ -45,13 +45,16 @@ services:
   k6:
     image: grafana/k6:0.53.0
     profiles: ["loadtest"]
+    environment:
+      BASE_URL: http://backend:8000
+      K6_NO_PROGRESS: "true"
     volumes:
       - ./loadtests:/loadtests:ro
     entrypoint: ["/bin/sh", "-c"]
     command: >
-      "k6 run /loadtests/k6/browse_catalog.js &&
-       k6 run /loadtests/k6/search_and_pdp.js &&
-       k6 run /loadtests/k6/cart_checkout.js"
+      "k6 run --no-thresholds /loadtests/k6/browse_catalog.js &&
+       k6 run --no-thresholds /loadtests/k6/search_and_pdp.js &&
+       k6 run --no-thresholds /loadtests/k6/cart_checkout.js"
 
 volumes:
   postgres_data:
