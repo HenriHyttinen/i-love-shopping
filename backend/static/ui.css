@@ -143,6 +143,15 @@ input, select, textarea, button {
   font-family: inherit;
 }
 
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #8bb9ff;
+  outline-offset: 2px;
+}
+
 input, select, textarea { background: #0c1423; color: var(--ink); }
 
 button {
@@ -195,6 +204,10 @@ button.danger {
   width: auto;
 }
 
+.btn-row > .badge {
+  width: auto;
+}
+
 .status {
   padding: 9px 10px;
   border-radius: 10px;
@@ -210,6 +223,8 @@ button.danger {
 .table {
   width: 100%;
   border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
 }
 
 .table th,

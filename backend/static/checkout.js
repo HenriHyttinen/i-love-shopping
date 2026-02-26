@@ -45,6 +45,31 @@
     };
   }
 
+  function fillDemoAddress() {
+    U.byId("line1").value = "Mannerheimintie 1";
+    U.byId("city").value = "Helsinki";
+    U.byId("state").value = "Uusimaa";
+    U.byId("postal_code").value = "00100";
+    U.byId("country").value = "FI";
+    U.byId("shipping_option").value = "standard";
+    U.setStatus("checkout-status", "Demo address filled.", "info");
+  }
+
+  function fillDemoContact() {
+    U.byId("full_name").value = U.byId("full_name").value.trim() || "Demo Buyer";
+    U.byId("email").value = U.byId("email").value.trim() || "buyer@example.com";
+    U.byId("phone").value = U.byId("phone").value.trim() || "+358401234567";
+    U.setStatus("checkout-status", "Demo contact filled.", "info");
+  }
+
+  function setSuccessPayment() {
+    U.byId("payment_method").value = "stripe_sandbox";
+    U.byId("payment_scenario").value = "success";
+    U.byId("payment_token_manual").value = "tok_success";
+    updatePaymentUI();
+    U.setStatus("checkout-status", "Success payment scenario selected.", "info");
+  }
+
   function validate(payload) {
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email);
     const phoneOk = /^[+0-9()\-\s]{7,20}$/.test(payload.phone);
@@ -326,12 +351,18 @@
   const prefillBtn = U.byId("prefill-btn");
   const summaryBtn = U.byId("summary-btn");
   const placeBtn = U.byId("place-btn");
+  const fillDemoAddressBtn = U.byId("fill-demo-address-btn");
+  const fillDemoContactBtn = U.byId("fill-demo-contact-btn");
+  const fillDemoSuccessBtn = U.byId("fill-demo-success-btn");
 
   authLoginBtn.addEventListener("click", () => U.withBusy(authLoginBtn, "Logging in...", login));
   authTokenBtn.addEventListener("click", useToken);
   prefillBtn.addEventListener("click", () => U.withBusy(prefillBtn, "Loading...", prefill));
   summaryBtn.addEventListener("click", () => U.withBusy(summaryBtn, "Loading...", summary));
   placeBtn.addEventListener("click", () => U.withBusy(placeBtn, "Placing...", placeOrder));
+  fillDemoAddressBtn.addEventListener("click", fillDemoAddress);
+  fillDemoContactBtn.addEventListener("click", fillDemoContact);
+  fillDemoSuccessBtn.addEventListener("click", setSuccessPayment);
   U.byId("payment_method").addEventListener("change", updatePaymentUI);
 
   summary();

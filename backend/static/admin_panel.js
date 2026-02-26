@@ -231,9 +231,37 @@
     status(`Bulk upload done. Created ${result.created}, updated ${result.updated}, failed ${result.failed}.`, "ok");
   }
 
+  function loadAllData() {
+    return Promise.all([loadUsers(), loadRefunds(), loadDelivery(), loadCategories(), loadProducts(), loadOrders()]);
+  }
+
+  function insertDemoBulkPayload() {
+    const demo = [
+      {
+        name: "Demo GPU 7700",
+        description: "Demo graphics card",
+        price: "399.99",
+        stock_quantity: 12,
+        category: "Graphics Cards",
+        brand: "NexCore",
+        weight_kg: "1.10",
+        weight_lb: "2.42",
+        length_cm: "28.00",
+        width_cm: "11.00",
+        height_cm: "4.00",
+        length_in: "11.02",
+        width_in: "4.33",
+        height_in: "1.57"
+      }
+    ];
+    U.byId("bulk-format").value = "json";
+    U.byId("bulk-payload").value = JSON.stringify(demo, null, 2);
+    status("Demo bulk payload inserted.", "info");
+  }
+
   async function init() {
     try {
-      await Promise.all([loadUsers(), loadRefunds(), loadDelivery(), loadCategories(), loadProducts(), loadOrders()]);
+      await loadAllData();
       status("Admin data loaded.", "info");
     } catch (err) {
       status(U.errorText(err), "error");
@@ -264,6 +292,8 @@
 
   U.byId("review-delete-btn").addEventListener("click", () => deleteReview().catch((err) => status(U.errorText(err), "error")));
   U.byId("bulk-upload-btn").addEventListener("click", () => runBulkUpload().catch((err) => status(U.errorText(err), "error")));
+  U.byId("admin-load-all-btn").addEventListener("click", () => loadAllData().then(() => status("All admin data loaded.", "ok")).catch((err) => status(U.errorText(err), "error")));
+  U.byId("bulk-demo-payload-btn").addEventListener("click", insertDemoBulkPayload);
 
   init();
 })();
