@@ -42,5 +42,16 @@ services:
     depends_on:
       - backend
 
+  k6:
+    image: grafana/k6:0.53.0
+    profiles: ["loadtest"]
+    volumes:
+      - ./loadtests:/loadtests:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "k6 run /loadtests/k6/browse_catalog.js &&
+       k6 run /loadtests/k6/search_and_pdp.js &&
+       k6 run /loadtests/k6/cart_checkout.js"
+
 volumes:
   postgres_data:

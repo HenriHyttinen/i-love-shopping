@@ -386,6 +386,11 @@ k6 run loadtests/k6/search_and_pdp.js
 k6 run loadtests/k6/cart_checkout.js
 ```
 
+Run all scenarios with Docker (no local k6 install):
+```bash
+docker-compose --profile loadtest run --rm k6
+```
+
 If app runs behind TLS proxy:
 ```bash
 BASE_URL=https://localhost:8443 k6 run loadtests/k6/browse_catalog.js
