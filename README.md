@@ -448,6 +448,12 @@ Identified limits and bottlenecks:
   - move callback/payment simulation processing to async worker for peak periods
   - tune DB connection pool and add endpoint-specific rate-limit tiers for checkout
 
+Resource profiling (Docker stats sampled during load runs):
+- `browse_catalog` run max observed backend/db CPU: `40.75%`, memory: `0.92%`
+- `cart_checkout` run max observed backend/db CPU: `18.49%`, memory: `0.95%`
+- Based on tested scenarios, CPU/memory >90% threshold was **not reached** in this environment.
+- Profiling artifacts are stored in `docs/perf/`.
+
 ## Manual QA (Commerce)
 1. Add/update/remove cart items and verify totals.
 2. Verify guest cart persistence with `X-Guest-Cart-Token`.
@@ -495,6 +501,18 @@ Identified limits and bottlenecks:
   - `ops/nginx/default.conf`
   - `ops/tls/generate_self_signed_cert.sh`
   - tests: `backend/tests/test_security.py`, `backend/tests/test_commerce.py`
+
+## Review Explanations (Short)
+- CIA principles in this project:
+  - Confidentiality: sensitive order/payment payloads are encrypted at rest and payment data is tokenized.
+  - Integrity: transactional checkout + row locks + controlled order status transitions prevent inconsistent writes.
+  - Availability: rate limiting reduces abuse impact, and Dockerized deployment keeps environment reproducible.
+- Semantic HTML and accessibility approach:
+  - pages use semantic containers (`header`, `main`, headings) with skip links and keyboard-focusable controls.
+  - meaningful text alternatives are provided for product imagery through `alt` values and structured sections.
+- Testing approach:
+  - unit/API/security/user-flow tests are run continuously in Docker (`90` automated tests currently passing).
+  - manual QA checklist is kept in README for review-time end-to-end demonstrations.
 
 ## Review Demo Flow (10-15 min)
 1. Home + PLP + PDP: open `/`, `/products/`, `/products/<id>/`, show ratings/reviews/helpful votes.
