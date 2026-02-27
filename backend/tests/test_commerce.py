@@ -5,7 +5,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from catalog.models import Brand, Category, Product
+from catalog.models import Brand, Category, Product, Review
 from commerce.models import Order, PaymentTransaction
 from users.models import User
 
@@ -473,6 +473,36 @@ class CommerceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock_quantity, 2)
+
+    def test_cancel_order_removes_review_when_no_successful_purchase_remains(self):
+        user = User.objects.create_user(
+            email="review-cancel@example.com",
+            password="StrongPass123!",
+            full_name="Review Cancel User",
+        )
+        order = Order.objects.create(
+            user=user,
+            status=Order.STATUS_PAYMENT_SUCCESSFUL,
+            payment_method="stripe_sandbox",
+            shipping_option=Order.SHIPPING_STANDARD,
+            subtotal=599.99,
+            total=607.89,
+            shipping_cost=7.90,
+        )
+        order.items.create(
+            product=self.product,
+            product_name=self.product.name,
+            quantity=1,
+            unit_price=599.99,
+            line_total=599.99,
+        )
+        review = Review.objects.create(product=self.product, user=user, rating=5, comment="Great")
+        self.assertTrue(Review.objects.filter(id=review.id).exists())
+
+        self.client.force_authenticate(user=user)
+        response = self.client.post(f"/api/commerce/orders/{order.id}/cancel/", {}, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Review.objects.filter(id=review.id).exists())
 
     def test_inventory_oversell_prevention(self):
         self.product.stock_quantity = 1

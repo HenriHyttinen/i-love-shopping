@@ -8,7 +8,7 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from catalog.models import Product
+from catalog.models import Product, Review
 
 from .models import CartItem, Order, OrderStatusEvent, PaymentStatusMessage, PaymentTransaction
 from .serializers import (
@@ -382,6 +382,13 @@ class OrderCancelView(APIView):
 
         for item in order.items.all():
             Product.objects.filter(id=item.product_id).update(stock_quantity=models.F("stock_quantity") + item.quantity)
+            still_verified_purchase = Order.objects.filter(
+                user=request.user,
+                status=Order.STATUS_PAYMENT_SUCCESSFUL,
+                items__product_id=item.product_id,
+            ).exists()
+            if not still_verified_purchase:
+                Review.objects.filter(user=request.user, product_id=item.product_id).delete()
 
         OrderStatusEvent.objects.create(order=order, status=Order.STATUS_CANCELLED, note="Order cancelled by user")
         return Response({"detail": "Order cancelled."})

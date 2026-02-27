@@ -55,6 +55,7 @@
             <div class="btn-row" style="margin-top:10px">
               <button class="secondary" data-open="${o.id}">Details</button>
               <button class="danger" data-cancel="${o.id}">Cancel</button>
+              <button class="secondary" data-refund="${o.id}">Request Refund</button>
             </div>
           </article>
         `
@@ -69,6 +70,11 @@
     root.querySelectorAll("button[data-cancel]").forEach((btn) => {
       btn.addEventListener("click", () =>
         U.withBusy(btn, "Cancelling...", () => cancelOrder(Number(btn.getAttribute("data-cancel"))))
+      );
+    });
+    root.querySelectorAll("button[data-refund]").forEach((btn) => {
+      btn.addEventListener("click", () =>
+        U.withBusy(btn, "Submitting...", () => requestRefund(Number(btn.getAttribute("data-refund"))))
       );
     });
   }
@@ -157,6 +163,23 @@
       if (selectedOrderId === orderId) {
         await loadDetails(orderId);
       }
+    } catch (err) {
+      U.setStatus("orders-status", U.errorText(err), "error");
+    }
+  }
+
+  async function requestRefund(orderId) {
+    try {
+      const reason = (window.prompt("Refund reason (optional):", "Item issue") || "").trim();
+      const data = await U.request(U.API + "/commerce/refunds/", {
+        method: "POST",
+        auth: true,
+        body: {
+          order: orderId,
+          reason,
+        },
+      });
+      U.setStatus("orders-status", data.detail || "Refund request submitted.", "ok");
     } catch (err) {
       U.setStatus("orders-status", U.errorText(err), "error");
     }

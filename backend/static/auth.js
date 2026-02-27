@@ -14,6 +14,11 @@
     if (guest) guest.style.display = "none";
     if (member) member.style.display = "none";
 
+    // Optimistic render from local token first to avoid perceived nav lag.
+    const hasToken = !!U.getAccessToken();
+    if (guest) guest.style.display = hasToken ? "none" : "inline-flex";
+    if (member) member.style.display = hasToken ? "inline-flex" : "none";
+
     const user = await U.fetchCurrentUser();
     const isAuth = !!user;
 

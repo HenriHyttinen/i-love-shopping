@@ -20,6 +20,12 @@
     return `<div class="muted" aria-label="Average rating ${numeric.toFixed(1)} out of 5">${stars} ${numeric.toFixed(1)}/5</div>`;
   }
 
+  function stockBadgeMarkup(stock) {
+    const qty = Number(stock || 0);
+    if (qty <= 0) return '<span class="badge" style="color:#ff9c9c;border-color:#7f3b43;">Out of Stock</span>';
+    return `<span class="badge">In Stock: ${qty}</span>`;
+  }
+
   function queryString() {
     const params = new URLSearchParams();
     const search = U.byId("plp-search").value.trim();
@@ -65,6 +71,7 @@
               <h3>${U.esc(p.name)}</h3>
               <div class="muted">${U.esc(p.brand.name)} • ${U.esc(p.category.name)}</div>
               ${ratingMarkup(p.rating)}
+              <div style="margin:8px 0;">${stockBadgeMarkup(p.stock_quantity)}</div>
               <div style="font-weight:700; margin:8px 0">${U.fmtMoney(p.price)}</div>
               <a class="btn-link" href="/products/${p.id}/">View Product</a>
             </article>
